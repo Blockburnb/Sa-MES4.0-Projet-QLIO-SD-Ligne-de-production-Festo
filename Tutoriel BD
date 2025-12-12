@@ -1,0 +1,71 @@
+📘 Tutoriel : Ouvrir le fichier .sql avec Docker et phpMyAdmin
+1️⃣ Télécharger les fichiers nécessaires
+Rendez-vous sur https://statandmore.com/univ/
+Téléchargez et dézippez mat.zip
+
+
+2️⃣ Installer Docker
+Téléchargez Docker ici : https://www.docker.com/
+Installez-le puis ouvrez-le (si ça ne marche pas, ouvrir un terminal sur l’ordinateur et taper : wsl -update puis relancer un fois terminé)
+Lors du lancement, si une fenêtre de connexion apparaît, cliquez simplement sur Skip (en haut du formulaire)
+
+
+3️⃣ Lancer l’environnement Docker
+Faites un clic droit dans le dossier où se trouve le fichier dézippé
+Sélectionnez “Ouvrir un terminal”
+Tapez la commande suivante :
+
+docker compose up
+
+Appuyez sur Entrée
+Attendez que Docker ait terminé de tout lancer (plus de mouvement dans le terminal)
+
+
+4️⃣ Accéder à phpMyAdmin
+Une fois Docker prêt, ouvrez votre navigateur et rendez-vous sur : 👉 http://localhost:8080
+
+
+5️⃣ Importer la base de données
+Dans phpMyAdmin, cliquez sur Importer
+Sélectionnez le fichier : FestoMES-2025-03-27.sql
+Validez l’import
+
+
+🎉 C’est fait !
+Vous pouvez maintenant naviguer dans la base de données.
+
+Pour rouvrir la base un prochaine fois reprenez à partir de “Lancer l’environnement Docker”.
+
+
+
+
+
+Document du groupe : Analyse/conception outil deci
+code sql - prendre la base V2 envoyée par mail :  
+
+on enleve les tables vides :
+
+SET @schema = 'MES4';
+
+SELECT 
+    CONCAT('DROP TABLE `', table_name, '`;') AS drop_command
+FROM 
+    information_schema.tables
+WHERE 
+    table_schema = @schema
+    AND table_rows = 0;
+—----------------------------------------------------------------------------------------------------------------------------
+
+DROP TABLE `tblaltoperationparameter`;
+DROP TABLE `tblautomaticorder`;
+DROP TABLE `tblbookedbufmsg`;
+DROP TABLE `tblorder`;
+DROP TABLE `tblorderpos`;
+DROP TABLE `tblpallet`;
+DROP TABLE `tblpalletdef`;
+DROP TABLE `tblpalletpos`;
+DROP TABLE `tblservicetimetable`;
+DROP TABLE `tblstep`;
+DROP TABLE `tblstepparameter`;
+
+
