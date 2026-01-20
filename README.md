@@ -6,15 +6,6 @@
 
 ---
 
-## 👥 L'Équipe - Groupe 6
-
-* **Philippe BRANDON**
-* **Franklin BECK**
-* **Nino MIGNARD**
-* **Anthony SON**
-
----
-
 ## 📂 Documents et Ressources
 
 Les fichiers et données nécessaires au projet sont accessibles via les liens suivants :
