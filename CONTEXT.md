@@ -1,132 +1,178 @@
-# 🧠 CONTEXTE DU PROJET : DASHBOARD QLIO / FESTO MES 4.0
+# 🧠 CONTEXTE DU PROJET : DASHBOARD T'ELEFAN (MES 4.0)
 
-Ce document sert de référence technique et fonctionnelle pour l'assistant IA. Il décrit l'architecture du projet "Ligne de Production Festo".
+Ce document est la **RÉFÉRENCE UNIQUE** pour l'assistant IA. Il compile les règles métier, le schéma technique et les 15 indicateurs obligatoires du client QLIO.
 
-## 1. OBJECTIF ET PÉRIMÈTRE
+## 1. CONTEXTE NARRATIF & RÔLES
 
-Développement d'une **Web App de pilotage (Dashboard)** pour une ligne d'assemblage didactique (Festo).
-
-* **Clients :** Étudiants QLIO (Qualité Logistique).
-* **Développeurs :** Groupe 6 (SD).
-* **Cible :** Visualisation des ordres de fabrication (OF), suivi qualité, et données logistiques (Robotino).
-
-## 2. ARCHITECTURE TECHNIQUE
-
-### A. Stack Applicative
-
-* **Langage :** Python 3.x (Strictement).
-* **Framework Web :** Streamlit ou Flask/Dash.
-* **Back-end Data :** `pandas` pour la manipulation des DataFrames.
-* **Connexion Base de Données :** `mysql-connector-python` ou `sqlalchemy`.
-
-### B. Infrastructure (Docker)
-
-L'application tourne ou interagit avec un conteneur Docker défini dans `docker-compose.yml` :
-
-* **Service DB :** `mariadb`
-* **Port :** 3306
-* **Database :** `MES4`
-* **User :** `example_user` / **Password :** `example_password`
-* **Root Password :** `example_root_password`
+* **Entreprise :** T'EleFan (Fabricant de smartphones durables).
+* **Projet :** Pilotage de la ligne d'assemblage semi-automatisée **Festo**.
+* **Acteurs :**
+* **Client (QLIO) :** Département Qualité/Logistique (Besoin métier, non technique).
+* **Prestataire (SD - Groupe 6) :** Département Science des Données (Expertise technique Python).
 
 
-* **Service Admin :** `phpmyadmin` (Port 8080)
+* **Objectif :** Collecter les données (SQL + IoT), les nettoyer et les présenter dans un tableau de bord décisionnel ergonomique.
 
-## 3. MODÈLE DE DONNÉES (SOURCES)
+## 2. CRITÈRES DE RÉUSSITE (GRILLE D'ÉVALUATION)
 
-L'application doit croiser deux sources de données distinctes.
+L'IA doit prioriser ces aspects dans le code généré :
 
-### SOURCE 1 : Base de Données SQL (MES4)
+1. **Design & Ergonomie (Coef 20) :** Interface "Sexy", Dark Mode, Accessibilité (Daltonisme).
+2. **Qualité du Code (Coef 15) :** Structure modulaire, PEP8, Docstrings.
+3. **Analytique (Coef 10) :** Pertinence des 15 KPIs et mise en valeur des données.
+4. **Fonctionnel (Coef 10) :** Robustesse (Try/Except), Gestion des erreurs de connexion.
 
-Données de production issues du dump `FestoMES-2025-03-27.sql`.
-*L'IA doit utiliser ces noms de tables exacts pour générer les requêtes SQL :*
+## 3. RÈGLES VISUELLES & UX (Selon Recherche Bibliographique)
 
-* **`tblOrder`** (Ordres de Fabrication - OF)
-* `OrderNo` (PK) : Numéro de commande/OF.
-* `OrderDate` : Date de création.
-* `CustomerName` : Nom du client.
-
-
-* **`tblOrderPos`** (Détails des commandes)
-* `OrderNo` (FK), `PartNo` (FK).
-* `Amount` : Quantité demandée.
-* `Produced` : Quantité produite.
+* **Thème :** Mode Sombre (Dark Mode) obligatoire + Palette accessible (Viridis/CVD).
+* **Intégrité Graphique :**
+* Axes Y démarrent toujours à 0.
+* Pas de 3D pour la 2D.
+* Contextualisation systématique (Valeur vs Objectif).
 
 
-* **`tblPart`** (Articles / Produits)
-* `PartNo` : Référence pièce.
-* `Description` : Nom de la pièce.
-
-
-* **`tblErrorLog`** (Qualité / Défauts)
-* `ErrorTime` : Timestamp de l'erreur.
-* `ErrorNo` : Code erreur.
-* `PartNo` : Pièce concernée.
-
-
-* **`tblWorkPlace`** (Postes de travail)
-* Identifie les stations (Magasin, Perçage, Assemblage...).
+* **Structure de l'App :**
+* **Sidebar :** Navigation + Filtres Globaux (Site, Période).
+* **4 Onglets :** Temps Réel, Stockage, Robot, Production/Qualité/Énergie.
 
 
 
-### SOURCE 2 : Logs Robot (CSV)
+## 4. ARCHITECTURE TECHNIQUE
 
-Données logistiques issues du fichier `robotino_data.csv`.
-*Structure du fichier (délimiteur `,`) :*
-
-* **`timestamp`** : Date/Heure (clé de jointure temporelle).
-* **`festool_charger_capacities_X`** : Niveau de batterie (0-100) pour différents slots.
-* **`festool_charger_externalPower_X`** : Booléen (Branché/Non branché).
-* **`festool_charger_batteryLow_X`** : Alerte batterie faible.
-
-## 4. INDICATEURS CLÉS (KPIs) À CODIFIER
-
-Les calculs doivent être réalisés en Python (`pandas`) après extraction des données brutes.
-
-1. **Taux d'Avancement (Progress) :**
-* Formule : `SUM(tblOrderPos.Produced) / SUM(tblOrderPos.Amount)`
-
-
-2. **Taux de Qualité (Quality Rate) :**
-* Formule : `(Production Totale - COUNT(tblErrorLog)) / Production Totale`
-
-
-3. **Disponibilité Robotino :**
-* Analyse de la colonne `festool_charger_batteryLow` et `capacities` dans le CSV.
-* Seuil critique : < 20% de batterie.
-
-
-4. **Répartition par Type de Produit :**
-* Agrégation des volumes produits par `tblPart.Description`.
+* **Langage :** 100% Python.
+* **Framework :** Streamlit (recommandé) ou Dash.
+* **Backend :** `pandas` pour tout le traitement de données.
+* **Sources :**
+* **MariaDB (SQL) :** Tables `tblfinorder`, `tblboxpos`, `tblbufferpos`, etc.
+* **CSV :** `robotino_data.csv` (Robot), `dataEnergy` (Conso).
 
 
 
-## 5. FONCTIONNALITÉS ATTENDUES (INTERFACE)
+## 5. MODÈLE DE DONNÉES (TABLES CLÉS)
 
-Selon les maquettes "CROQUIS logiciel" et le PDF "SAé_Telephan" :
+*Noms exacts à utiliser dans les requêtes SQL* :
 
-1. **Sidebar (Filtres) :**
-* Sélecteur de **Période** (Date Début / Date Fin).
-* Ce filtre doit s'appliquer à la requête SQL (`WHERE OrderDate BETWEEN ...`) et au filtrage du CSV Robotino.
+* **`tblfinorder`** : Ordres terminés (Temps de cycle `start`/`end`, Opérations).
+* **`tblboxpos`** : Suivi des produits (Quantités, Conformité, Défauts).
+* **`tblbufferpos`** : Stockage (Positions occupées/vides, Entrées/Sorties).
+* **`tblerrorcodes`** : Libellés des erreurs.
+* **`tblcarrier`** : Suivi des palettes (pour temps des non-conformités).
+
+## 6. DÉTAIL DES 15 INDICATEURS (PAR ONGLET)
+
+### 🔴 ONGLET 1 : TEMPS RÉEL (Suivi Immédiat)
+
+*Mise à jour continue.*
+
+**1. Autonomie du Robot (Journalier)**
+
+* **Donnée :** `device_potAccuChargeState_centiPercent` (CSV Robot).
+* **Formule :** Vert = Batterie restante ; Rouge = (100 - Restante).
+* **Visuel :** 2 Pourcentages (Arrondi unité).
+
+**2. Nombre d'OF Réalisés (Journalier)**
+
+* **Donnée :** `tblfinorder`.
+* **Formule :** Total (Table) vs Réalisés (Statut Terminé).
+* **Visuel :** 2 Chiffres (Vert=Fait, Rouge=Reste à faire). *Note: En cours = Reste à faire.*
+
+**3. Production Réalisée (Journalière)**
+
+* **Donnée :** `tblboxpos`.
+* **Formule :** Total Prévu vs Total Fini.
+* **Visuel :** 2 Chiffres (Vert=Réalisé, Rouge=Reste).
+
+### 🟠 ONGLET 2 : STOCKAGE
+
+*Mise à jour quotidienne.*
+
+**4. Taux d'Occupation Stockage**
+
+* **Donnée :** `tblbufferpos` (Total lignes) vs `tblboxpos` (Occupées).
+* **Formule :** `(Nb Occupées / Nb Total) * 100`.
+* **Visuel :** Jauge avec zones (Vert <70%, Orange 70-85%, Rouge >85%).
+
+**5. Mouvements de Stocks**
+
+* **Donnée :** `tblbufferpos`.
+* **Formule :** `Somme(Entrées) + Somme(Sorties)`.
+* **Visuel :** Courbe d'évolution journalière.
+
+### 🟡 ONGLET 3 : ROBOT
+
+*Performance et Maintenance.*
+
+**6. Historique Autonomie Robot**
+
+* **Donnée :** `device_potAccuChargeState_centiPercent` & `power_output_current`.
+* **Visuel :** Graphique Combiné (Histo: Temps fonctionnement, Ligne: % Batterie).
+
+**7. Distance Parcourue**
+
+* **Donnée :** `odometry_x`, `odometry_y` (CSV).
+* **Formule :** Somme des distances euclidiennes entre points successifs.
+* **Visuel :** Chiffre en Mètres (Arrondi unité).
+
+### 🔵 ONGLET 4 : PROD / QUALITÉ / ÉNERGIE
+
+*Analyse Historique avec Filtres.*
+
+**8. Production Hebdomadaire**
+
+* **Donnée :** `tblboxpos`.
+* **Calcul :** Somme Réelle (Lun-Ven) vs Objectif (ex: 720).
+* **Visuel :** Comparaison (Arrondi unité).
+
+**9. Production Détaillée (Semaine)**
+
+* **Donnée :** `tblboxpos`.
+* **Visuel :** Barres (Prod/Jour) vs Ligne (Objectif/Jour).
+
+**10. Taux d'Occupation Machine**
+
+* **Donnée :** `tblfinorder`.
+* **Formule :** `(Temps Fonctionnement / Temps Total Disponible) * 100`.
+* **Objectif :** 80%.
+* **Visuel :** % (Arrondi 1 décimale).
+
+**11. Temps de Cycle & NVA**
+
+* **Donnée :** `tblfinorder` (Total), `tblbufferpos` (NVA/Attente).
+* **Calcul :** Cycle Moyen = Total/Qté ; VA = Cycle - NVA.
+* **Visuel :** Histo empilé (VA + NVA).
+
+**12. Taux de Défaut (NC)**
+
+* **Donnée :** `tblboxpos` (Total vs NC).
+* **Formule :** `(Nb Défectueux / Total) * 100`.
+* **Seuil :** Acceptable < 3%.
+* **Visuel :** % (Arrondi 1 décimale).
+
+**13. Causes des Non-Conformités**
+
+* **Donnée :** `tblerrorcodes` + `tblcarrier`.
+* **Catégories :** "Mauvaise couleur", "Problème hauteur", "Autre".
+* **Visuel :** Répartition % (Pie/Bar).
+
+**14. Taux de Conforme**
+
+* **Donnée :** `tblboxpos`.
+* **Formule :** `(Nb Conformes / Total) * 100`.
+* **Visuel :** % (Arrondi 1 décimale).
+
+**15. Consommation Énergie**
+
+* **Donnée :** Fichier `dataEnergy` (kWh).
+* **Indicateur :** Conso à J-1.
+* **Visuel :** Chiffre (Arrondi 1 décimale).
+
+## 7. SÉCURITÉ & ACCÈS
+
+* **Fichier Utilisateurs :** `users.csv` (`id`, `username`, `password_hash`, `role`).
+* **Rôles :**
+* **Admin :** Accès total (Config, Utilisateurs).
+* **Manager (QLIO) :** Vue Dashboard complète.
+* **Visiteur/Opérateur :** Vue restreinte (Onglet Temps Réel).
 
 
-2. **Page Dashboard Production :**
-* Graphique en barre : Quantité produite par jour.
-* Camembert : Répartition des types d'erreurs (`tblErrorLog`).
-
-
-3. **Page Robotino/Maintenance :**
-* Graphique linéaire : Évolution de la batterie du Robotino dans le temps.
-* Alertes : Liste des moments où le robot était en "Battery Low".
-
-
-4. **Export :**
-* Bouton pour télécharger les données consolidées en CSV.
-
-
-
-## 6. INSTRUCTIONS SPÉCIFIQUES POUR LE CODE
-
-* **Connexion DB :** Utiliser un bloc `try/except` pour la connexion MariaDB. Si la connexion échoue (local vs docker), prévoir un fallback ou un message d'erreur clair.
-* **Nettoyage :** Le CSV Robotino contient beaucoup de colonnes vides ou à 0 (`festool_charger_accuConnected_X`). Filtrer les colonnes inutiles dès le chargement dans le DataFrame.
-* **Jointures :** Il n'y a pas de clé directe entre le Robotino et le MES. La corrélation se fait uniquement par le **Timestamp**.
+* **Authentification :** Page de Login obligatoire au démarrage.

@@ -1,0 +1,6 @@
+﻿Nom Variable;Définition;Métrique (Unité);Source (Table.Champ);Nettoyage / Règle
+Robot_Batterie;Niveau de charge actuel du Robotino;Pourcentage (0-100);robotino_data.csv (festool_charger_capacities_0);Moyenne par minute. Alerte Rouge si < 20%.
+Robot_Charge;Indique si le robot est branché sur secteur;Booléen;robotino_data.csv (festool_charger_externalPower_0);True = En charge, False = Sur batterie.
+Robot_X;Coordonnée X de la position du robot;Mètres;robotino_data.csv (odometry_x);Utilisé pour calcul distance euclidienne.
+Robot_Y;Coordonnée Y de la position du robot;Mètres;robotino_data.csv (odometry_y);Utilisé pour calcul distance euclidienne.
+Conso_Elec;Consommation électrique totale journalière;kWh;dataEnergy (Fichier externe);Arrondir à 1 décimale.

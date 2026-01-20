@@ -1,0 +1,10 @@
+﻿Nom Variable;Définition;Métrique (Unité);Source (Table.Champ);Nettoyage / Règle
+OrderNo;Numéro unique de l'Ordre de Fabrication (Identifiant);Texte (ID);tblfinorder.OrderNo;Vérifier l'unicité. Clé Primaire.
+Date_Lancement;Date et heure de début de production de l'OF;Datetime;tblfinorder.StartTime;Convertir le format SQL en objet datetime Python.
+Date_Fin;Date et heure de fin de production de l'OF;Datetime;tblfinorder.EndTime;Si NULL, considérer l'état comme 'En cours'.
+Produit_Ref;Référence unique du produit fabriqué;Entier (ID);tblboxpos.PartNo;Jointure avec 'tblpart' pour récupérer le Nom et l'Image.
+Statut_Piece;État de la pièce (Conforme ou Non Conforme);Booléen / Texte;tblboxpos.Error;Si Error > 0 alors 'Non Conforme'. Sinon 'Conforme'.
+Code_Erreur;Code identifiant le type de défaut spécifique;Entier;tblboxpos.Error;0 = OK. Faire jointure avec 'tblerrorcodes' pour description.
+Temps_Cycle;Durée totale nécessaire pour fabriquer une unité;Secondes;Calcul (EndTime - StartTime);Exclure valeurs négatives ou aberrantes (> seuil).
+Position_Stock;Emplacement physique du produit dans le magasin;Entier (1-9);tblbufferpos.PosNo;Filtrer uniquement les positions valides du buffer.
+Temps_Defaut;Temps passé sur le convoyeur pour un défaut;Secondes;tblcarrier.Time;Jointure avec tblboxpos.
