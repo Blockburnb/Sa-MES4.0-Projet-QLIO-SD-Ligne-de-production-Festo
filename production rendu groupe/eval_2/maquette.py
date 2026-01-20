@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 # Configuration de la page (Mode Large + Dark Mode)
@@ -38,7 +39,7 @@ else:
 
 # Simulation Sidebar
 st.sidebar.title("📱 T'EleFan MES")
-page = st.sidebar.radio("Navigation", ["Connexion", "Temps Réel (Opérateur)", "Stockage & Robot", "Admin / Qualité"])
+page = st.sidebar.radio("Navigation", ["Connexion", "Temps Réel (Opérateur)", "Stockage", "Robot", "Qualité", "Admin"])
 st.sidebar.markdown("---")
 
 # Filtres Globaux
@@ -97,11 +98,63 @@ elif page == "Temps Réel (Opérateur)":
     production_realisee = np.random.randint(400, 650)
     production_objectif = 720
     
-    # KPIs en haut
-    kpi1, kpi2, kpi3 = st.columns(3)
-    kpi1.metric("🔋 Autonomie Robot", f"{autonomie_restante}%", f"-{autonomie_utilisee}% utilisé")
-    kpi2.metric("✅ OF Réalisés (Jour)", f"{of_realises} / {of_total}", f"{of_total - of_realises} restants")
-    kpi3.metric("📱 Production (Unités)", f"{production_realisee}", f"Objectif: {production_objectif}")
+    # KPIs verticaux avec barres personnalisées
+    # KPI 1 : Autonomie Robot
+    pct_vert = (autonomie_restante / 100) * 100
+    pct_rouge = (autonomie_utilisee / 100) * 100
+    st.markdown(f"""
+        <div style="width: 100%; margin-bottom: 30px;">
+            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                🔋 Autonomie Robot
+            </div>
+            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                <div style="width: {pct_vert}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {autonomie_restante}% Restant
+                </div>
+                <div style="width: {pct_rouge}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {autonomie_utilisee}% Utilisé
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # KPI 2 : OF Réalisés
+    pct_of_fait = (of_realises / of_total) * 100
+    pct_of_reste = ((of_total - of_realises) / of_total) * 100
+    st.markdown(f"""
+        <div style="width: 100%; margin-bottom: 30px;">
+            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                ✅ OF Réalisés (Jour)
+            </div>
+            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                <div style="width: {pct_of_fait}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {of_realises} Réalisés
+                </div>
+                <div style="width: {pct_of_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {of_total - of_realises} Restants
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # KPI 3 : Production
+    pct_prod_fait = (production_realisee / production_objectif) * 100
+    pct_prod_reste = 100 - pct_prod_fait if pct_prod_fait < 100 else 0
+    st.markdown(f"""
+        <div style="width: 100%; margin-bottom: 30px;">
+            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                📱 Production (Unités)
+            </div>
+            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                <div style="width: {min(pct_prod_fait, 100)}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {production_realisee} unités
+                </div>
+                <div style="width: {pct_prod_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {'Objectif: ' + str(production_objectif) if pct_prod_reste > 0 else ''}
+                </div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("### ⚠️ Alertes en cours")
     if autonomie_restante < 30:
@@ -113,61 +166,136 @@ elif page == "Temps Réel (Opérateur)":
     else:
         st.success("✅ Aucune alerte critique. Ligne nominale.")
 
-# PAGE 3: STOCKAGE & ROBOT
-elif page == "Stockage & Robot":
+# PAGE 3: STOCKAGE
+elif page == "Stockage":
     display_header()
     
-    st.title("📦 Logistique & Robotique")
+    st.title("📦 Logistique")
     
-    col_gauche, col_droite = st.columns(2)
-    
-    with col_gauche:
-        st.subheader("Taux d'Occupation Magasin")
-        # Simulation Jauge avec zones colorées
-        occupation = np.random.randint(45, 95)
-        st.progress(occupation / 100)
+    # Section Stockage
+    st.markdown("### 📦 Stockage")
+    with st.container():
+        col_stock1, col_stock2 = st.columns(2)
         
-        if occupation < 70:
-            st.success(f"✅ {occupation}% Occupé (Zone Verte < 70%)")
-        elif occupation < 85:
-            st.warning(f"🟠 {occupation}% Occupé (Zone Orange 70-85%)")
-        else:
-            st.error(f"🔴 {occupation}% Occupé (Zone Rouge > 85%)")
+        with col_stock1:
+            st.subheader("Taux d'occupation de l'espace de stockage")
+            occupation = np.random.randint(45, 95)
+            
+            # Jauge demi-cercle simple avec Plotly
+            gauge_fig = go.Figure(go.Indicator(
+                mode="gauge+number",
+                value=occupation,
+                number={"suffix": "%", "font": {"size": 20}},
+                gauge={
+                    "shape": "angular",
+                    "axis": {
+                        "range": [0, 100],
+                        "tickwidth": 1,
+                        "tickcolor": "#888",
+                        "nticks": 6
+                    },
+                    "bar": {"color": "#161b22", "thickness": 0.99},
+                    "steps": [
+                        {"range": [0, 70], "color": "#00aa00"},
+                        {"range": [70, 85], "color": "#ff9900"},
+                        {"range": [85, 100], "color": "#cc0000"}
+                    ],
+                },
+                domain={"x": [0, 1], "y": [0, 1]},
+            ))
+            gauge_fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
+            st.plotly_chart(gauge_fig, width='stretch')
         
-        st.markdown("#### Mouvements Stocks (7j)")
-        chart_data = pd.DataFrame(np.random.randint(10, 50, size=(7, 2)), columns=['Entrées', 'Sorties'])
-        st.line_chart(chart_data)
+        with col_stock2:
+            st.subheader("Mouvements Stocks (7j)")
+            chart_data = pd.DataFrame(np.random.randint(10, 50, size=(7, 2)), columns=['Entrées', 'Sorties'])
+            st.line_chart(chart_data)
 
-    with col_droite:
-        st.subheader("Monitoring Robotino")
-        distance_parcourue = np.random.randint(900, 1500)
-        st.metric("📏 Distance Parcourue", f"{distance_parcourue} m")
-        
-        st.markdown("#### Batterie vs Activité")
-        heures_actives = [2, 4, 6, 8, 5]
-        charge_batterie = [90, 80, 60, 40, 20]
-        chart_robot = pd.DataFrame({
-            "Heures Actives": heures_actives,
-            "Charge (%)": charge_batterie
-        })
-        st.bar_chart(chart_robot.set_index("Charge (%)"))
-        
-        # KPI 6 : Historique Autonomie (graphique combiné)
-        st.markdown("#### KPI 6: Historique Autonomie Robot")
-        temps_data = pd.DataFrame({
-            "Temps (h)": range(1, 11),
-            "Batterie (%)": sorted([90, 85, 75, 60, 50, 40, 30, 25, 20, 15], reverse=True),
-            "Puissance (W)": np.random.randint(500, 2000, 10)
-        })
-        st.line_chart(temps_data.set_index("Temps (h)"))
-
-# PAGE 4: ADMIN
-elif page == "Admin / Qualité":
+# PAGE 4: ROBOT
+elif page == "Robot":
     display_header()
     
-    st.title("📊 Analyse de Performance (Admin)")
+    st.title("🤖 Robotino")
     
-    # Ligne 1 : Production Hebdo + Causes NC
+    # Section Robot
+    st.markdown("### 🤖 Robotino")
+    with st.container():
+        col_robot1, col_robot2 = st.columns(2)
+        
+        with col_robot1:
+            st.subheader("Autonomie du Robot")
+            temps_utilisation_data = pd.DataFrame({
+                "Jour": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+                "Temps util. (h)": [0.75, 2.0, 1.58, 1.83, 1.42, 1.0, 0.5],
+                "Batterie (%)": [95, 85, 70, 60, 45, 30, 20]
+            })
+            
+            # Graphique mixte avec Plotly
+            fig_mixed = go.Figure()
+            fig_mixed.add_trace(go.Bar(
+                x=temps_utilisation_data["Jour"],
+                y=temps_utilisation_data["Temps util. (h)"],
+                name="Temps utilisation (h)",
+                marker_color="#1f77b4",
+                yaxis="y1"
+            ))
+            fig_mixed.add_trace(go.Scatter(
+                x=temps_utilisation_data["Jour"],
+                y=temps_utilisation_data["Batterie (%)"],
+                name="Batterie restante (%)",
+                line=dict(color="#ff7f0e", width=3),
+                yaxis="y2"
+            ))
+            fig_mixed.update_layout(
+                title_text="Activité et Batterie",
+                xaxis=dict(title="Jour de la semaine"),
+                yaxis=dict(
+                    title=dict(text="Temps utilisation (h)", font=dict(color="#1f77b4")),
+                    tickfont=dict(color="#1f77b4")
+                ),
+                yaxis2=dict(
+                    title=dict(text="Batterie (%)", font=dict(color="#ff7f0e")),
+                    tickfont=dict(color="#ff7f0e"),
+                    overlaying="y",
+                    side="right"
+                ),
+                hovermode="x unified",
+                height=350,
+                margin=dict(l=40, r=60, t=40, b=40)
+            )
+            st.plotly_chart(fig_mixed, width='stretch')
+        
+        with col_robot2:
+            st.subheader("Distance parcourue")
+            distance_data = pd.DataFrame({
+                "Jour": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+                "Distance (m)": [120, 350, 600, 850, 1100, 1320, 1450]
+            })
+            
+            fig_distance = go.Figure()
+            fig_distance.add_trace(go.Scatter(
+                x=distance_data["Jour"],
+                y=distance_data["Distance (m)"],
+                name="Distance totale (m)",
+                line=dict(color="#2ca02c", width=3)
+            ))
+            fig_distance.update_layout(
+                title_text="Distance cumulée",
+                xaxis_title="Jour de la semaine",
+                yaxis_title="Distance (m)",
+                height=350,
+                margin=dict(l=40, r=40, t=40, b=40),
+                hovermode="x"
+            )
+            st.plotly_chart(fig_distance, width='stretch')
+
+# PAGE 5: ADMIN
+elif page == "Admin":
+    display_header()
+    
+    st.title("📊 Gestion de Production (Admin)")
+    
+    # Ligne 1 : Production Hebdo + Temps de Cycle
     c1, c2 = st.columns(2)
     
     with c1:
@@ -184,22 +312,6 @@ elif page == "Admin / Qualité":
         st.metric("📈 Total Hebdo", f"{production_hebdo} unités", f"Objectif: {objectif_hebdo}")
     
     with c2:
-        st.subheader("KPI 13: Répartition Causes NC")
-        defaut_hauteur = np.random.randint(20, 50)
-        defaut_couleur = 100 - defaut_hauteur
-        
-        st.progress(defaut_hauteur / 100)
-        st.caption(f"🔴 Défaut Hauteur : {defaut_hauteur}%")
-        st.progress(defaut_couleur / 100)
-        st.caption(f"🔵 Défaut Couleur : {defaut_couleur}%")
-        st.info("Autres défauts négligeables")
-    
-    st.divider()
-    
-    # Ligne 2 : Temps de Cycle & KPIs Qualité
-    c3, c4 = st.columns(2)
-    
-    with c3:
         st.subheader("KPI 11: Temps de Cycle & NVA")
         cycle_time_data = pd.DataFrame({
             "Ordre": range(1, 6),
@@ -208,22 +320,9 @@ elif page == "Admin / Qualité":
         })
         st.bar_chart(cycle_time_data.set_index("Ordre"), width='stretch')
     
-    with c4:
-        st.subheader("KPIs Qualité")
-        taux_rebut = np.random.uniform(1.5, 3.5)
-        occupation_machine = np.random.randint(75, 95)
-        conso_energie = np.random.uniform(40, 50)
-        taux_conforme = np.random.uniform(95, 99)
-        
-        m1, m2 = st.columns(2)
-        m1.metric("Taux Rebuts (KPI 12)", f"{taux_rebut:.1f}%", "Acceptable < 3%")
-        m2.metric("Taux Conforme (KPI 14)", f"{taux_conforme:.1f}%", "Objectif > 95%")
-        m1.metric("Occupation Machine (KPI 10)", f"{occupation_machine}%", "Objectif > 80%")
-        m2.metric("Conso Énergie J-1 (KPI 15)", f"{conso_energie:.1f} kWh", "-5% vs N-1")
-    
     st.divider()
     
-    # Ligne 3 : Récapitulatif des 15 KPIs
+    # Récapitulatif des 15 KPIs
     st.subheader("📋 Récapitulatif des 15 KPIs")
     kpis_summary = pd.DataFrame({
         "KPI": [
@@ -247,3 +346,210 @@ elif page == "Admin / Qualité":
         "Données": ["Random"] * 15
     })
     st.dataframe(kpis_summary, width='stretch')
+
+# PAGE 6: QUALITÉ
+elif page == "Qualité":
+    display_header()
+    
+    st.title("📊 Production Réel vs Prévisionnel | ✨ Qualité")
+    
+    # Layout 2 colonnes principales
+    col_prod, col_qual = st.columns(2, gap="large")
+    
+    # ===== COLONNE GAUCHE: PRODUCTION =====
+    with col_prod:
+        st.markdown("### Production réel vs prévisionnel")
+        
+        # Ligne 1: KPI 8 + KPI 9
+        p1, p2 = st.columns([1, 1.5])
+        
+        with p1:
+            st.markdown("**Production de la semaine**")
+            production_hebdo = np.random.randint(600, 800)
+            objectif_hebdo = 720
+            
+            # Cadre 2x2
+            st.markdown("""
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
+                    <div style="color: #888; font-size: 12px; margin-bottom: 8px;">Réel</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #00cc00;">""" + str(production_hebdo) + """</div>
+                </div>
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
+                    <div style="color: #888; font-size: 12px; margin-bottom: 8px;">OBJ</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #1f77b4;">""" + str(objectif_hebdo) + """</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with p2:
+            st.markdown("**Production détaillée de la semaine**")
+            prod_detail = pd.DataFrame({
+                "OBJ/PDP": [150, 120, 100, 170, 180],
+                "Réel": [120, 120, 90, 160, 180],
+                "Écart": [30, 0, 10, 10, 0]
+            }, index=["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"])
+            st.dataframe(prod_detail, use_container_width=True)
+        
+        st.divider()
+        
+        # Ligne 2: KPI 10 + KPI 11
+        p3, p4 = st.columns([1, 1])
+        
+        with p3:
+            st.markdown("**Taux d'occupation**")
+            st.caption("taux d'occupation de la ligne de production")
+            
+            occupation_data = pd.DataFrame({
+                "Jour": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+                "Taux": [85, 78, 72, 89, 65]
+            })
+            
+            fig_occupation = go.Figure()
+            fig_occupation.add_trace(go.Bar(
+                x=occupation_data["Jour"],
+                y=occupation_data["Taux"],
+                name="Taux occupation",
+                marker=dict(color="#1f77b4")
+            ))
+            fig_occupation.add_hline(y=80, line_dash="dash", line_color="red", 
+                                     annotation_text="taux", annotation_position="right")
+            fig_occupation.update_layout(
+                height=300, margin=dict(l=30, r=30, t=20, b=50),
+                xaxis_title="", yaxis_title="",
+                showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
+            )
+            st.plotly_chart(fig_occupation, use_container_width=True)
+        
+        with p4:
+            st.markdown("**Temps de cycle**")
+            st.caption("Les temps de la journée entre NVA et VA")
+            
+            cycle_data = pd.DataFrame({
+                "Jour": ["lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"],
+                "VA": [6, 5, 6, 5, 4],
+                "NVA": [1, 2, 1, 2, 3]
+            })
+            
+            fig_cycle = go.Figure()
+            fig_cycle.add_trace(go.Bar(
+                x=cycle_data["Jour"],
+                y=cycle_data["VA"],
+                name="VA",
+                marker=dict(color="#1f77b4")
+            ))
+            fig_cycle.add_trace(go.Bar(
+                x=cycle_data["Jour"],
+                y=cycle_data["NVA"],
+                name="NVA",
+                marker=dict(color="#ff7f0e")
+            ))
+            fig_cycle.update_layout(
+                barmode="stack",
+                height=300, margin=dict(l=30, r=30, t=20, b=50),
+                xaxis_title="", yaxis_title="",
+                showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
+            )
+            st.plotly_chart(fig_cycle, use_container_width=True)
+    
+    # ===== COLONNE DROITE: QUALITÉ =====
+    with col_qual:
+        st.markdown("### Qualité")
+        
+        # KPI 12: Nombre de NC
+        st.markdown("**Nombre de NC**")
+        nc_data = pd.DataFrame({
+            "Jour": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+            "NC": [2.5, 1.5, 2.0, 2.5, 1.8]
+        })
+        
+        fig_nc = go.Figure()
+        
+        # Zones de couleur (fond)
+        # Zone verte (0 à 2.25)
+        fig_nc.add_trace(go.Scatter(
+            x=nc_data["Jour"],
+            y=[2.25] * len(nc_data),
+            fill="tozeroy",
+            fillcolor="rgba(0, 204, 0, 0.2)",
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            hoverinfo="skip"
+        ))
+        
+        # Zone rouge (2.25 à 3)
+        fig_nc.add_trace(go.Scatter(
+            x=nc_data["Jour"],
+            y=[3] * len(nc_data),
+            fill="tonexty",
+            fillcolor="rgba(204, 0, 0, 0.2)",
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            hoverinfo="skip"
+        ))
+        
+        # Courbe de données
+        fig_nc.add_trace(go.Scatter(
+            x=nc_data["Jour"],
+            y=nc_data["NC"],
+            name="NC",
+            line=dict(color="#1f77b4", width=3),
+            mode="lines+markers",
+            marker=dict(size=8)
+        ))
+        
+        fig_nc.update_layout(
+            height=250, margin=dict(l=30, r=30, t=10, b=30),
+            xaxis_title="", yaxis_title="",
+            yaxis=dict(range=[0, 3]),
+            showlegend=False, hovermode="x"
+        )
+        st.plotly_chart(fig_nc, use_container_width=True)
+        
+        st.divider()
+        
+        # KPI 13 + KPI 14 (côte à côte)
+        q1, q2 = st.columns([2.5, 1])
+        
+        with q1:
+            st.markdown("**Causes des NC**")
+            causes_data = pd.DataFrame({
+                "Cause": ["Mauvaise couleur", "Mauvaise hauteur", "Autres"],
+                "Pourcentage": [60, 30, 10]
+            })
+            
+            fig_causes = go.Figure()
+            fig_causes.add_trace(go.Bar(
+                x=causes_data["Cause"],
+                y=causes_data["Pourcentage"],
+                name="%",
+                marker=dict(color="#ff7f0e")
+            ))
+            fig_causes.add_trace(go.Scatter(
+                x=causes_data["Cause"],
+                y=np.cumsum(causes_data["Pourcentage"]),
+                name="% cumulé",
+                line=dict(color="#888888", width=2),
+                yaxis="y2"
+            ))
+            fig_causes.update_layout(
+                height=250, margin=dict(l=30, r=30, t=10, b=30),
+                xaxis_title="", yaxis_title="",
+                yaxis2=dict(overlaying="y", side="right"),
+                showlegend=False, hovermode="x"
+            )
+            st.plotly_chart(fig_causes, use_container_width=True)
+        
+        with q2:
+            st.markdown("**Taux de conforme**")
+            taux_conforme = np.random.uniform(95, 99)
+            st.markdown(f"<div style='text-align: center; font-size: 48px; color: #00cc00; font-weight: bold;'>{taux_conforme:.0f}%</div>", 
+                       unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # KPI 15
+        st.markdown("**Moyenne de la consommation d'énergie**")
+        conso_energie = np.random.uniform(150, 160)
+        st.markdown(f"<div style='text-align: center; font-size: 32px; color: #1f77b4; font-weight: bold;'>{conso_energie:.0f} kW/h</div>", 
+                   unsafe_allow_html=True)
