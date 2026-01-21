@@ -39,7 +39,21 @@ else:
 
 # Simulation Sidebar
 st.sidebar.title("📱 T'EleFan MES")
-page = st.sidebar.radio("Navigation", ["Connexion", "Temps Réel (Opérateur)", "Stockage", "Robot", "Qualité", "Admin"])
+
+# Vérifier si une navigation est demandée depuis Admin
+if "nav_target" in st.session_state:
+    target = st.session_state.pop("nav_target")
+    st.session_state["current_page"] = target
+
+# Initialiser la page courante
+if "current_page" not in st.session_state:
+    st.session_state["current_page"] = "Connexion"
+
+page = st.sidebar.radio("Navigation", ["Connexion", "Temps Réel (Opérateur)", "Stockage", "Robot", "Qualité", "Admin"], 
+                        index=["Connexion", "Temps Réel (Opérateur)", "Stockage", "Robot", "Qualité", "Admin"].index(st.session_state["current_page"]))
+
+# Mettre à jour la page courante si l'utilisateur a changé la sélection
+st.session_state["current_page"] = page
 st.sidebar.markdown("---")
 
 # Filtres Globaux
@@ -53,10 +67,10 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", use_container_width=True):
+    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", width='stretch'):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
         st.rerun()
-    st.button("Déconnexion", key="sidebar_logout", use_container_width=True)
+    st.button("Déconnexion", key="sidebar_logout", width='stretch')
 st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
 # Header commun pour toutes les pages (sauf connexion)
@@ -78,7 +92,7 @@ if page == "Connexion":
         st.markdown("## 🔒 Authentification")
         st.text_input("Identifiant", placeholder="ex: benoit.riou")
         st.text_input("Mot de passe", type="password")
-        st.button("SE CONNECTER", type="primary", use_container_width=True)
+        st.button("SE CONNECTER", type="primary", width='stretch')
         
         # Mot de passe oublié en bas à droite
         st.markdown("<div style='text-align: right;'><a href='#'>Mot de passe oublié ?</a></div>", unsafe_allow_html=True)
@@ -294,58 +308,67 @@ elif page == "Admin":
     display_header()
     
     st.title("📊 Gestion de Production (Admin)")
-    
-    # Ligne 1 : Production Hebdo + Temps de Cycle
-    c1, c2 = st.columns(2)
-    
-    with c1:
-        st.subheader("KPI 8&9: Production Hebdomadaire vs Objectif")
-        objectif_hebdo = 720
-        production_hebdo = np.random.randint(600, 800)
-        
-        prod_data = pd.DataFrame({
-            "Jour": ["Lun", "Mar", "Mer", "Jeu", "Ven"],
-            "Réel": np.random.randint(120, 160, 5),
-            "Objectif": [144, 144, 144, 144, 144]  # 720/5
-        })
-        st.bar_chart(prod_data.set_index("Jour"))
-        st.metric("📈 Total Hebdo", f"{production_hebdo} unités", f"Objectif: {objectif_hebdo}")
-    
-    with c2:
-        st.subheader("KPI 11: Temps de Cycle & NVA")
-        cycle_time_data = pd.DataFrame({
-            "Ordre": range(1, 6),
-            "VA (mn)": [12, 14, 11, 13, 15],
-            "NVA Attente (mn)": [3, 2, 4, 2, 1]
-        })
-        st.bar_chart(cycle_time_data.set_index("Ordre"), width='stretch')
-    
-    st.divider()
-    
-    # Récapitulatif des 15 KPIs
+
     st.subheader("📋 Récapitulatif des 15 KPIs")
-    kpis_summary = pd.DataFrame({
-        "KPI": [
-            "1. Autonomie Robot",
-            "2. OF Réalisés",
-            "3. Production Réalisée",
-            "4. Taux Occupation Stockage",
-            "5. Mouvements Stocks",
-            "6. Historique Autonomie",
-            "7. Distance Parcourue",
-            "8. Production Hebdo",
-            "9. Production Détaillée",
-            "10. Occupation Machine",
-            "11. Temps Cycle & NVA",
-            "12. Taux Défaut",
-            "13. Causes NC",
-            "14. Taux Conforme",
-            "15. Conso Énergie"
-        ],
-        "Statut": ["✅"] * 15,
-        "Données": ["Random"] * 15
-    })
-    st.dataframe(kpis_summary, width='stretch')
+    def set_nav_target(dest_page: str) -> None:
+        st.session_state["nav_target"] = dest_page
+
+    kpi_rows = [
+        ("1. Autonomie Robot", "Temps Réel (Opérateur)"),
+        ("2. OF Réalisés", "Temps Réel (Opérateur)"),
+        ("3. Production Réalisée", "Temps Réel (Opérateur)"),
+        ("4. Taux Occupation Stockage", "Stockage"),
+        ("5. Mouvements Stocks", "Stockage"),
+        ("6. Historique Autonomie", "Robot"),
+        ("7. Distance Parcourue", "Robot"),
+        ("8. Production Hebdo", "Qualité"),
+        ("9. Production Détaillée", "Qualité"),
+        ("10. Occupation Machine", "Qualité"),
+        ("11. Temps Cycle & NVA", "Qualité"),
+        ("12. Taux Défaut", "Qualité"),
+        ("13. Causes NC", "Qualité"),
+        ("14. Taux Conforme", "Qualité"),
+        ("15. Conso Énergie", "Qualité"),
+    ]
+
+    # Initialiser les droits d'accès si nécessaire
+    if "kpi_permissions" not in st.session_state:
+        st.session_state["kpi_permissions"] = {
+            label: ["Admin", "Opérateur"] for label, _ in kpi_rows
+        }
+
+    # En-têtes du tableau
+    col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
+    with col_label:
+        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>KPI</div>", unsafe_allow_html=True)
+    with col_perms:
+        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>Droits d'accès</div>", unsafe_allow_html=True)
+    with col_data:
+        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>Données</div>", unsafe_allow_html=True)
+
+    # Lignes du tableau
+    table_container = st.container()
+    with table_container:
+        for label, dest in kpi_rows:
+            col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
+            with col_label:
+                st.button(label, key=f"kpi_nav_{label}", on_click=set_nav_target, args=(dest,), width='stretch')
+            with col_perms:
+                current_perms = st.session_state["kpi_permissions"][label]
+                selected_perms = st.multiselect(
+                    "Rôles",
+                    ["Admin", "Opérateur", "Superviseur", "Chef de production"],
+                    default=current_perms,
+                    key=f"kpi_perms_{label}",
+                    label_visibility="collapsed"
+                )
+                st.session_state["kpi_permissions"][label] = selected_perms
+            with col_data:
+                st.write("Random")
+    
+    # Rerun après avoir défini la cible
+    if "nav_target" in st.session_state:
+        st.rerun()
 
 # PAGE 6: QUALITÉ
 elif page == "Qualité":
@@ -389,7 +412,7 @@ elif page == "Qualité":
                 "Réel": [120, 120, 90, 160, 180],
                 "Écart": [30, 0, 10, 10, 0]
             }, index=["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"])
-            st.dataframe(prod_detail, use_container_width=True)
+            st.dataframe(prod_detail, width='stretch')
         
         st.divider()
         
@@ -419,7 +442,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
-            st.plotly_chart(fig_occupation, use_container_width=True)
+            st.plotly_chart(fig_occupation, width='stretch')
         
         with p4:
             st.markdown("**Temps de cycle**")
@@ -450,7 +473,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
-            st.plotly_chart(fig_cycle, use_container_width=True)
+            st.plotly_chart(fig_cycle, width='stretch')
     
     # ===== COLONNE DROITE: QUALITÉ =====
     with col_qual:
@@ -504,7 +527,7 @@ elif page == "Qualité":
             yaxis=dict(range=[0, 3]),
             showlegend=False, hovermode="x"
         )
-        st.plotly_chart(fig_nc, use_container_width=True)
+        st.plotly_chart(fig_nc, width='stretch')
         
         st.divider()
         
@@ -538,7 +561,7 @@ elif page == "Qualité":
                 yaxis2=dict(overlaying="y", side="right"),
                 showlegend=False, hovermode="x"
             )
-            st.plotly_chart(fig_causes, use_container_width=True)
+            st.plotly_chart(fig_causes, width='stretch')
         
         with q2:
             st.markdown("**Taux de conforme**")
