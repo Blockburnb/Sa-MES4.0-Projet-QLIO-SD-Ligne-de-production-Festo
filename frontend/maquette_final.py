@@ -140,85 +140,97 @@ elif page == "Temps Réel (Opérateur)":
 
     # Essayer de récupérer des données depuis le backend
     orders = fetch_json('/orders')
+    connected = orders is not None
 
-    # Générer nombres random si backend absent
-    if orders is None:
-        autonomie_restante = np.random.randint(50, 95)
-        of_realises = np.random.randint(8, 16)
-        production_realisee = np.random.randint(400, 650)
-    else:
-        # basic mapping if backend returns list of orders
+    # Générer nombres random si backend absent -> replaced by explicit message
+    if connected:
         autonomie_restante = np.random.randint(50, 95)
         of_realises = len(orders)
         production_realisee = of_realises * 40  # simple proxy
+    else:
+        # No connection: display message and use placeholders
+        st.error("no connection to database")
+        autonomie_restante = None
+        of_realises = None
+        production_realisee = None
 
-    autonomie_utilisee = 100 - autonomie_restante
+    autonomie_utilisee = None if autonomie_restante is None else 100 - autonomie_restante
     of_total = 16
     production_objectif = 720
 
-    # KPI visuals (same style as maquette)
-    pct_vert = (autonomie_restante / 100) * 100
-    pct_rouge = (autonomie_utilisee / 100) * 100
-    st.markdown(
-        f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                🔋 Autonomie Robot
+    # KPI visuals (same style as maquette) - show placeholders when disconnected
+    if not connected:
+        # Simple placeholder cards showing the no-connection state
+        st.markdown("""
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 10px;">
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">🔋 Autonomie Robot<br><strong>no connection to database</strong></div>
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">✅ OF Réalisés (Jour)<br><strong>no connection to database</strong></div>
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">📱 Production (Unités)<br><strong>no connection to database</strong></div>
             </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {pct_vert}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {autonomie_restante}% Restant
+        """, unsafe_allow_html=True)
+    else:
+        pct_vert = (autonomie_restante / 100) * 100
+        pct_rouge = (autonomie_utilisee / 100) * 100
+        st.markdown(
+            f"""
+            <div style="width: 100%; margin-bottom: 30px;">
+                <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                    🔋 Autonomie Robot
                 </div>
-                <div style="width: {pct_rouge}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {autonomie_utilisee}% Utilisé
+                <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                    <div style="width: {pct_vert}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {autonomie_restante}% Restant
+                    </div>
+                    <div style="width: {pct_rouge}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {autonomie_utilisee}% Utilisé
+                    </div>
                 </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-    pct_of_fait = (of_realises / of_total) * 100
-    pct_of_reste = ((of_total - of_realises) / of_total) * 100
-    st.markdown(
-        f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                ✅ OF Réalisés (Jour)
-            </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {pct_of_fait}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {of_realises} Réalisés
+        pct_of_fait = (of_realises / of_total) * 100
+        pct_of_reste = ((of_total - of_realises) / of_total) * 100
+        st.markdown(
+            f"""
+            <div style="width: 100%; margin-bottom: 30px;">
+                <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                    ✅ OF Réalisés (Jour)
                 </div>
-                <div style="width: {pct_of_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {of_total - of_realises} Restants
+                <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                    <div style="width: {pct_of_fait}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {of_realises} Réalisés
+                    </div>
+                    <div style="width: {pct_of_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {of_total - of_realises} Restants
+                    </div>
                 </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
-    pct_prod_fait = (production_realisee / production_objectif) * 100
-    pct_prod_reste = 100 - pct_prod_fait if pct_prod_fait < 100 else 0
-    st.markdown(
-        f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                📱 Production (Unités)
-            </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {min(pct_prod_fait, 100)}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {production_realisee} unités
+        pct_prod_fait = (production_realisee / production_objectif) * 100
+        pct_prod_reste = 100 - pct_prod_fait if pct_prod_fait < 100 else 0
+        st.markdown(
+            f"""
+            <div style="width: 100%; margin-bottom: 30px;">
+                <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
+                    📱 Production (Unités)
                 </div>
-                <div style="width: {pct_prod_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {'Objectif: ' + str(production_objectif) if pct_prod_reste > 0 else ''}
+                <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
+                    <div style="width: {min(pct_prod_fait, 100)}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {production_realisee} unités
+                    </div>
+                    <div style="width: {pct_prod_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                        {'Objectif: ' + str(production_objectif) if pct_prod_reste > 0 else ''}
+                    </div>
                 </div>
             </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+            """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("### ⚠️ Alertes en cours")
     if autonomie_restante < 30:
