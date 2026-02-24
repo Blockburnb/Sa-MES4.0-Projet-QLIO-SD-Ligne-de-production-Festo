@@ -33,6 +33,23 @@ def fetch_json(path: str):
     except Exception:
         return None
 
+# Global connection probe (used by all pages)
+orders_global = fetch_json('/orders')
+connected = orders_global is not None
+
+
+def show_no_connection_page():
+    st.error("no connection to database")
+    st.markdown("""
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 10px;">
+            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">🔋 Autonomie Robot<br><strong>no connection to database</strong></div>
+            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">✅ OF Réalisés (Jour)<br><strong>no connection to database</strong></div>
+            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">📱 Production (Unités)<br><strong>no connection to database</strong></div>
+        </div>
+    """, unsafe_allow_html=True)
+    # Stop further rendering of this page
+    st.stop()
+
 # Initialiser session_state pour refresh des données et thème
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = datetime.now()
@@ -100,7 +117,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle_final"):
+    if st.button(f"Thème {'🌙' if st.session_state.theme == "dark" else '☀️'}", key="theme_toggle_final"):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
         # Removed st.experimental_rerun() for compatibility; changing session_state via a widget
         # will cause Streamlit to rerun automatically in supported versions.
@@ -138,9 +155,9 @@ elif page == "Temps Réel (Opérateur)":
     st.title("🏭 Suivi Production - Temps Réel")
     st.info(f"Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-    # Essayer de récupérer des données depuis le backend
-    orders = fetch_json('/orders')
-    connected = orders is not None
+    # Use the global probe result
+    orders = orders_global
+    # connected is already set
 
     # Générer nombres random si backend absent -> replaced by explicit message
     if connected:
@@ -246,6 +263,10 @@ elif page == "Temps Réel (Opérateur)":
 elif page == "Stockage":
     display_header()
 
+    # If not connected, show placeholder and stop
+    if not connected:
+        show_no_connection_page()
+
     st.title("📦 Logistique")
 
     # Section Stockage
@@ -290,6 +311,10 @@ elif page == "Stockage":
 # PAGE 4: ROBOT
 elif page == "Robot":
     display_header()
+
+    # If not connected, show placeholder and stop
+    if not connected:
+        show_no_connection_page()
 
     st.title("🤖 Robotino")
 
@@ -369,6 +394,10 @@ elif page == "Robot":
 elif page == "Admin":
     display_header()
 
+    # If not connected, show placeholder and stop
+    if not connected:
+        show_no_connection_page()
+
     st.title("📊 Gestion de Production (Admin)")
 
     st.subheader("📋 Récapitulatif des 15 KPIs")
@@ -435,6 +464,10 @@ elif page == "Admin":
 # PAGE 6: QUALITÉ
 elif page == "Qualité":
     display_header()
+
+    # If not connected, show placeholder and stop
+    if not connected:
+        show_no_connection_page()
 
     st.title("📊 Production Réel vs Prévisionnel | ✨ Qualité")
 
