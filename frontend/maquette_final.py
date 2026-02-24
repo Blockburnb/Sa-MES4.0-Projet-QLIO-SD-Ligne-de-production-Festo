@@ -38,17 +38,10 @@ orders_global = fetch_json('/orders')
 connected = orders_global is not None
 
 
-def show_no_connection_page():
+def show_no_connection_banner():
+    """Display a small non-blocking banner informing the user the backend is unreachable."""
     st.error("no connection to database")
-    st.markdown("""
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 10px;">
-            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">🔋 Autonomie Robot<br><strong>no connection to database</strong></div>
-            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">✅ OF Réalisés (Jour)<br><strong>no connection to database</strong></div>
-            <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px; color: #ff6666;">📱 Production (Unités)<br><strong>no connection to database</strong></div>
-        </div>
-    """, unsafe_allow_html=True)
-    # Stop further rendering of this page
-    st.stop()
+    st.markdown("<div style='color:#ff6666; font-weight:bold; margin-top:8px;'>Backend not reachable — data is simulated or unavailable.</div>", unsafe_allow_html=True)
 
 # Initialiser session_state pour refresh des données et thème
 if "last_refresh" not in st.session_state:
@@ -159,7 +152,10 @@ elif page == "Temps Réel (Opérateur)":
 
     # Use the global probe result
     orders = orders_global
-    # connected is already set
+
+    # If not connected, show banner but continue rendering UI
+    if not connected:
+        show_no_connection_banner()
 
     # Générer nombres random si backend absent -> replaced by explicit message
     if connected:
@@ -167,8 +163,7 @@ elif page == "Temps Réel (Opérateur)":
         of_realises = len(orders)
         production_realisee = of_realises * 40  # simple proxy
     else:
-        # No connection: display message and use placeholders
-        st.error("no connection to database")
+        # No connection: use placeholders (None) but keep the page layout
         autonomie_restante = None
         of_realises = None
         production_realisee = None
@@ -265,9 +260,9 @@ elif page == "Temps Réel (Opérateur)":
 elif page == "Stockage":
     display_header()
 
-    # If not connected, show placeholder and stop
+    # If not connected, show banner but continue rendering UI
     if not connected:
-        show_no_connection_page()
+        show_no_connection_banner()
 
     st.title("📦 Logistique")
 
@@ -314,9 +309,9 @@ elif page == "Stockage":
 elif page == "Robot":
     display_header()
 
-    # If not connected, show placeholder and stop
+    # If not connected, show banner but continue rendering UI
     if not connected:
-        show_no_connection_page()
+        show_no_connection_banner()
 
     st.title("🤖 Robotino")
 
@@ -396,9 +391,9 @@ elif page == "Robot":
 elif page == "Admin":
     display_header()
 
-    # If not connected, show placeholder and stop
+    # If not connected, show banner but continue rendering UI
     if not connected:
-        show_no_connection_page()
+        show_no_connection_banner()
 
     st.title("📊 Gestion de Production (Admin)")
 
@@ -467,9 +462,9 @@ elif page == "Admin":
 elif page == "Qualité":
     display_header()
 
-    # If not connected, show placeholder and stop
+    # If not connected, show banner but continue rendering UI
     if not connected:
-        show_no_connection_page()
+        show_no_connection_banner()
 
     st.title("📊 Production Réel vs Prévisionnel | ✨ Qualité")
 
