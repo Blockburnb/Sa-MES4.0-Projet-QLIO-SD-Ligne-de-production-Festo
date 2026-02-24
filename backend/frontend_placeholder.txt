@@ -1,0 +1,1 @@
+Frontend will be implemented in `frontend/` (React/Vite). Placeholder file.
