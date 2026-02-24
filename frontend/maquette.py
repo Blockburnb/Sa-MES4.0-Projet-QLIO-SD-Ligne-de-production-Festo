@@ -13,15 +13,20 @@ st.set_page_config(
 )
 
 # Helper to try fetch data from backend, fallback to None
-BACKEND_URL = st.secrets.get('BACKEND_URL', 'http://127.0.0.1:8000') if hasattr(st, 'secrets') else 'http://127.0.0.1:8000'
+try:
+    # st.secrets may not exist if no secrets.toml is provided
+    BACKEND_URL = st.secrets.get('BACKEND_URL', 'http://127.0.0.1:8000')
+except Exception:
+    BACKEND_URL = 'http://127.0.0.1:8000'
 
-async def fetch_json(path: str):
+
+def fetch_json(path: str):
+    """Synchronous fetch helper. Returns parsed JSON or None on error."""
     url = BACKEND_URL.rstrip('/') + path
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            r = await client.get(url)
-            r.raise_for_status()
-            return r.json()
+        r = httpx.get(url, timeout=2.0)
+        r.raise_for_status()
+        return r.json()
     except Exception:
         return None
 
@@ -81,7 +86,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", ):
+    if st.button(f"Thème {'🌙' if st.session_state.theme == "dark" else "☀️"}", key="theme_toggle", ):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
         st.experimental_rerun()
     st.button("Déconnexion", key="sidebar_logout")
@@ -121,8 +126,7 @@ elif page == "Temps Réel (Opérateur)":
     # Essayez de récupérer des données depuis le backend
     orders = None
     try:
-        import asyncio
-        orders = asyncio.run(fetch_json('/orders'))
+        orders = fetch_json('/orders')
     except Exception:
         orders = None
     
