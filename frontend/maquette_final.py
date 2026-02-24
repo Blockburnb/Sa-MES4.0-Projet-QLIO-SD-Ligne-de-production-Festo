@@ -117,7 +117,9 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == "dark" else '☀️'}", key="theme_toggle_final"):
+    # compute emoji label separately to avoid nested-quote f-string issues
+    theme_emoji = '🌙' if st.session_state.theme == 'dark' else '☀️'
+    if st.button(f"Thème {theme_emoji}", key="theme_toggle_final"):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
         # Removed st.experimental_rerun() for compatibility; changing session_state via a widget
         # will cause Streamlit to rerun automatically in supported versions.
