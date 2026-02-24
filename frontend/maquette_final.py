@@ -102,7 +102,8 @@ col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
     if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle_final"):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
-        st.experimental_rerun()
+        # Removed st.experimental_rerun() for compatibility; changing session_state via a widget
+        # will cause Streamlit to rerun automatically in supported versions.
     st.button("Déconnexion", key="sidebar_logout_final")
 st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
@@ -413,9 +414,11 @@ elif page == "Admin":
             with col_data:
                 st.write("Random")
 
-    # Rerun après avoir défini la cible
+    # Rerun after setting nav_target is unnecessary; button interaction already triggers rerun.
     if "nav_target" in st.session_state:
-        st.experimental_rerun()
+        # Previously: st.experimental_rerun()
+        # Removed for compatibility with Streamlit versions that don't expose experimental_rerun.
+        pass
 
 # PAGE 6: QUALITÉ
 elif page == "Qualité":
