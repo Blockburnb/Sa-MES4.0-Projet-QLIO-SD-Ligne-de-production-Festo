@@ -40,9 +40,21 @@ class StepOut(StepBase):
 
 
 class MachineOut(BaseModel):
-    machine_name: str
+    # expose resource id and timestamp so frontend can compute KPIs
+    resource_id: int
+    timestamp: datetime
+    automatic_mode: Optional[bool] = None
+    manual_mode: Optional[bool] = None
+    busy: Optional[bool] = None
+    reset: Optional[bool] = None
+    error_l0: Optional[bool] = None
+    error_l1: Optional[bool] = None
+    error_l2: Optional[bool] = None
+
+    # compatibility fields
+    machine_name: Optional[str] = None
     report: Optional[str] = None
-    created_at: Optional[datetime]
+    created_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True

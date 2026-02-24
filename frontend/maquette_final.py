@@ -23,57 +23,23 @@ except Exception:
     BACKEND_URL = 'http://127.0.0.1:8000'
 
 
-def fetch_json(path: str):
-    """Synchronous fetch helper. Returns parsed JSON or None on error."""
+def fetch_json(path: str, params: dict | None = None):
+    """Synchronous fetch helper. Returns parsed JSON or None on error. Supports query params."""
     url = BACKEND_URL.rstrip('/') + path
     try:
-        r = httpx.get(url, timeout=3.0)
+        if params:
+            r = httpx.get(url, params=params, timeout=5.0)
+        else:
+            r = httpx.get(url, timeout=3.0)
         r.raise_for_status()
         return r.json()
     except Exception:
         return None
 
-# Global connection probe (used by all pages)
-orders_global = fetch_json('/orders')
-connected = orders_global is not None
-
-
-def show_no_connection_banner():
-    """Display a small non-blocking banner informing the user the backend is unreachable."""
-    st.error("no connection to database")
-    st.markdown("<div style='color:#ff6666; font-weight:bold; margin-top:8px;'>Backend not reachable — data is simulated or unavailable.</div>", unsafe_allow_html=True)
-
 # Initialiser session_state pour refresh des données et thème
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = datetime.now()
-    st.session_state.random_seed = np.random.randint(0, 1000000)
     st.session_state.theme = "dark"  # dark ou light
-
-# Force regeneration des nombres random à chaque page
-st.session_state.random_seed = np.random.randint(0, 1000000)
-np.random.seed(st.session_state.random_seed)
-
-# Appliquer le thème CSS
-if st.session_state.theme == "dark":
-    st.markdown(
-        """
-        <style>
-            :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
-            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-else:
-    st.markdown(
-        """
-        <style>
-            :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
-            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
 # Simulation Sidebar
 st.sidebar.title("📱 T'EleFan MES - Final")
@@ -104,6 +70,83 @@ st.sidebar.subheader("🔍 Filtres")
 date_range = st.sidebar.date_input("Période d'analyse", [datetime.now() - timedelta(days=7), datetime.now()])
 site = st.sidebar.selectbox("Site", ["Tous", "Site A - Festo", "Site B"]) 
 
+# Compute filter parameters early so debug UI can access them
+sd = None
+ed = None
+try:
+    if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+        sd = date_range[0].isoformat() + "T00:00:00"
+        ed = date_range[1].isoformat() + "T23:59:59"
+except Exception:
+    sd = None
+    ed = None
+site_param = None if site == "Tous" else site
+filter_params = {k: v for k, v in {"start_date": sd, "end_date": ed, "site": site_param, "limit": 500}.items() if v is not None}
+
+# --- Show which days in the selected range have data ---
+# Try to fetch a larger set of orders (no date filter) to compute availability by day.
+try:
+    all_orders_sample = fetch_json('/orders', params={'limit': 5000}) or []
+    available_days = set()
+    for o in all_orders_sample:
+        try:
+            # created_at expected in ISO format
+            d = o.get('created_at')
+            if d:
+                available_days.add(d[:10])
+        except Exception:
+            continue
+except Exception:
+    all_orders_sample = []
+    available_days = set()
+
+# Render a compact day-strip showing which days of the selected range have data
+try:
+    sd_widget = date_range[0]
+    ed_widget = date_range[1]
+    days = (ed_widget - sd_widget).days + 1
+    day_boxes = []
+    for i in range(days):
+        day = (sd_widget + timedelta(days=i)).date()
+        day_str = day.isoformat()
+        has = day_str in available_days
+        color = '#2ca02c' if has else '#444'
+        label = day.strftime('%d %b')
+        day_boxes.append(f"<div style='padding:6px 8px; margin:2px; border-radius:4px; background:{color}; color:white; font-size:11px;' title={'has data' if has else 'no data'}>{label}</div>")
+    day_strip_html = "<div style='display:flex; flex-wrap:wrap;'>" + "".join(day_boxes) + "</div>"
+    st.sidebar.markdown("<div style='margin-top:10px; font-size:12px; color:#aaa;'>Périodes avec données (vert)</div>", unsafe_allow_html=True)
+    st.sidebar.markdown(day_strip_html, unsafe_allow_html=True)
+except Exception:
+    # ignore visual errors
+    pass
+
+# Debug / info about filtered data (toggleable)
+if st.sidebar.checkbox("Afficher détails filtre / debug", value=False):
+    st.sidebar.markdown("**Paramètres de filtre envoyés au backend :**")
+    st.sidebar.write(filter_params)
+    try:
+        cnt = len(orders_for_display) if isinstance(orders_for_display, list) else 0
+        st.sidebar.markdown(f"**Ordres trouvés (filtré) :** {cnt}")
+        # compute min/max dates from orders_for_display
+        dates = []
+        for o in orders_for_display:
+            try:
+                d = o.get('created_at')
+                if d:
+                    dates.append(d[:10])
+            except Exception:
+                continue
+        if dates:
+            st.sidebar.markdown(f"**Période des ordres :** {min(dates)} → {max(dates)}")
+        else:
+            st.sidebar.markdown("**Période des ordres :** aucune donnée")
+    except Exception:
+        st.sidebar.write("Impossible de calculer les détails")
+    if st.sidebar.button("Rafraîchir les données"):
+        # simple client-side refresh: re-run by setting a session_state value
+        st.session_state.last_refresh = datetime.now()
+        st.experimental_rerun()
+
 st.sidebar.markdown("---")
 
 # Gestion du thème et déconnexion (centrés)
@@ -124,6 +167,74 @@ def display_header():
     col1, col2 = st.columns([8, 2])
     with col2:
         st.markdown("<div style='text-align: right;'><strong>Groupe 6</strong><br><em>Admin</em></div>", unsafe_allow_html=True)
+
+# Global connection probe (used by all pages)
+# probe the backend once to detect connectivity
+orders_global = fetch_json('/orders')
+machines_global = fetch_json('/machines')
+connected = orders_global is not None
+
+# Build filter params from sidebar date_range and site so they apply to all pages
+sd = None
+ed = None
+try:
+    if isinstance(date_range, (list, tuple)) and len(date_range) == 2:
+        sd = date_range[0].isoformat() + "T00:00:00"
+        ed = date_range[1].isoformat() + "T23:59:59"
+except Exception:
+    sd = None
+    ed = None
+
+site_param = None if site == "Tous" else site
+filter_params = {k: v for k, v in {"start_date": sd, "end_date": ed, "site": site_param, "limit": 500}.items() if v is not None}
+
+# Fetch filtered data once (falls back to global probe if filtered fetch fails)
+filtered_orders = fetch_json('/orders', params=filter_params)
+if filtered_orders is None:
+    orders_for_display = orders_global or []
+else:
+    orders_for_display = filtered_orders
+
+filtered_machines = fetch_json('/machines')
+machines_for_display = filtered_machines or machines_global or []
+
+# Derive a deterministic numpy seed from the filtered data so visuals change with filters
+try:
+    sum_ids = sum([o.get('id', 0) for o in orders_for_display if isinstance(o, dict)])
+    machines_count = len(machines_for_display) if isinstance(machines_for_display, list) else 0
+    deterministic_seed = (sum_ids + machines_count) % 2_000_000
+except Exception:
+    deterministic_seed = 42
+
+np.random.seed(int(deterministic_seed))
+
+# Appliquer le thème CSS
+if st.session_state.theme == "dark":
+    st.markdown(
+        """
+        <style>
+            :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
+            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        """
+        <style>
+            :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
+            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+# Fetch KPIs once using the current filter params so the UI is consistent
+try:
+    kpis = fetch_json('/kpis', params=filter_params) or {}
+except Exception:
+    kpis = {}
 
 # PAGE 1: CONNEXION
 if page == "Connexion":
@@ -150,23 +261,67 @@ elif page == "Temps Réel (Opérateur)":
     st.title("🏭 Suivi Production - Temps Réel")
     st.info(f"Dernière mise à jour : {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-    # Use the global probe result
-    orders = orders_global
+    # Use the pre-fetched filtered data so the whole app is consistent
+    orders = orders_for_display
+    machines = machines_for_display
 
     # If not connected, show banner but continue rendering UI
     if not connected:
         show_no_connection_banner()
 
-    # Générer nombres random si backend absent -> replaced by explicit message
+    # When connected, derive deterministic KPIs from backend data instead of random values
     if connected:
-        autonomie_restante = np.random.randint(50, 95)
-        of_realises = len(orders)
-        production_realisee = of_realises * 40  # simple proxy
+        # Prefer KPI feed when available
+        try:
+            prod_count_kpi = kpis.get('production_count') if isinstance(kpis, dict) else None
+        except Exception:
+            prod_count_kpi = None
+
+        # OF réalisés = prefer production_count KPI if provided, else number of orders
+        if prod_count_kpi is not None:
+            of_realises = int(prod_count_kpi)
+        else:
+            of_realises = len(orders) if isinstance(orders, list) else 0
+
+        # Production réalisée: prefer explicit KPI (production_count) in units, else estimate
+        if prod_count_kpi is not None:
+            production_realisee = int(prod_count_kpi)
+        else:
+            production_realisee = of_realises * 40  # units per order (domain assumption)
+
+        # Autonomy: derive a deterministic value from machines busy flags if available
+        autonomie_restante = None
+        if isinstance(machines, list) and len(machines) > 0:
+            try:
+                busy_count = sum(1 for m in machines if bool(m.get('busy') or m.get('Busy') or m.get('busy', False)))
+                total_machines = len(machines)
+                busy_ratio = busy_count / total_machines
+                # Map busy_ratio to autonomy: more busy -> lower remaining battery
+                autonomie_restante = max(10, int((1 - busy_ratio) * 100))
+            except Exception:
+                autonomie_restante = 80
+        else:
+            # Fallback deterministic value when machines info not available
+            autonomie_restante = 80
+
+        # Additional KPIs for display (safe extraction)
+        avg_cycle_min = kpis.get('average_cycle_time_min') if isinstance(kpis, dict) else None
+        avg_lead_min = kpis.get('average_lead_time_min') if isinstance(kpis, dict) else None
+        throughput = kpis.get('throughput_per_day') if isinstance(kpis, dict) else None
+        buffer_occ = kpis.get('buffer_occupancy_avg') if isinstance(kpis, dict) else None
+        buffer_mov = kpis.get('buffer_movements') if isinstance(kpis, dict) else None
+        mach_util = kpis.get('machine_utilization_pct') if isinstance(kpis, dict) else None
+        mach_avail = kpis.get('machine_availability_pct') if isinstance(kpis, dict) else None
+        yield_pct = kpis.get('yield_pct') if isinstance(kpis, dict) else None
+        defect_pct = kpis.get('defect_rate_pct') if isinstance(kpis, dict) else None
+        energy_kwh = kpis.get('energy_consumption_kwh') if isinstance(kpis, dict) else None
     else:
         # No connection: use placeholders (None) but keep the page layout
         autonomie_restante = None
         of_realises = None
         production_realisee = None
+        avg_cycle_min = avg_lead_min = throughput = buffer_occ = buffer_mov = None
+        mach_util = mach_avail = yield_pct = defect_pct = energy_kwh = None
 
     autonomie_utilisee = None if autonomie_restante is None else 100 - autonomie_restante
     of_total = 16
@@ -247,11 +402,13 @@ elif page == "Temps Réel (Opérateur)":
         )
 
     st.markdown("### ⚠️ Alertes en cours")
-    if autonomie_restante < 30:
+    if autonomie_restante is None:
+        st.info("Aucune donnée de batterie disponible (backend absent)")
+    elif autonomie_restante < 30:
         st.error("🔴 ALERTE : Batterie robot critique (<30%)")
     elif autonomie_restante < 50:
         st.warning("🟠 ATTENTION : Batterie robot faible (30-50%)")
-    elif production_realisee < (production_objectif * 0.5):
+    elif production_realisee is not None and production_realisee < (production_objectif * 0.5):
         st.warning("⚠️ Production en retard par rapport à l'objectif")
     else:
         st.success("✅ Aucune alerte critique. Ligne nominale.")
@@ -273,7 +430,16 @@ elif page == "Stockage":
 
         with col_stock1:
             st.subheader("Taux d'occupation de l'espace de stockage")
-            occupation = np.random.randint(45, 95)
+            if connected and isinstance(orders_for_display, list):
+                # If KPI available, prefer buffer occupancy KPI
+                if buffer_occ is not None:
+                    occupation = min(100, int(buffer_occ))
+                else:
+                    # deterministic occupancy derived from number of filtered orders
+                    occupation = min(95, 30 + len(orders_for_display) * 3)
+            else:
+                # offline placeholder
+                occupation = 60
 
             # Jauge demi-cercle simple avec Plotly
             gauge_fig = go.Figure(go.Indicator(
@@ -302,7 +468,15 @@ elif page == "Stockage":
 
         with col_stock2:
             st.subheader("Mouvements Stocks (7j)")
-            chart_data = pd.DataFrame(np.random.randint(10, 50, size=(7, 2)), columns=['Entrées', 'Sorties'])
+            # deterministic movement values: scale with orders count
+            if connected and isinstance(orders_for_display, list):
+                base = max(5, len(orders_for_display))
+                entries = [base + i for i in range(7)]
+                exits = [max(0, base - i // 2) for i in range(7)]
+            else:
+                entries = [10, 12, 9, 11, 13, 8, 7]
+                exits = [5, 6, 7, 5, 8, 6, 4]
+            chart_data = pd.DataFrame({"Entrées": entries, "Sorties": exits})
             st.line_chart(chart_data)
 
 # PAGE 4: ROBOT
@@ -365,6 +539,11 @@ elif page == "Robot":
 
         with col_robot2:
             st.subheader("Distance parcourue")
+            # If machine utilization KPI exists, annotate chart title
+            title_extra = ""
+            if mach_util is not None:
+                title_extra = f" — Utilisation machines: {mach_util}%"
+
             distance_data = pd.DataFrame({
                 "Jour": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
                 "Distance (m)": [120, 350, 600, 850, 1100, 1320, 1450]
@@ -378,7 +557,7 @@ elif page == "Robot":
                 line=dict(color="#2ca02c", width=3)
             ))
             fig_distance.update_layout(
-                title_text="Distance cumulée",
+                title_text="Distance cumulée" + title_extra,
                 xaxis_title="Jour de la semaine",
                 yaxis_title="Distance (m)",
                 height=350,
@@ -435,6 +614,25 @@ elif page == "Admin":
     # Lignes du tableau
     table_container = st.container()
     with table_container:
+        # mapping from displayed KPI label to backend kpi key
+        mapping = {
+            "1. Autonomie Robot": None,  # not provided by /kpis (derived from machines)
+            "2. OF Réalisés": 'production_count',
+            "3. Production Réalisée": 'production_count',
+            "4. Taux Occupation Stockage": 'buffer_occupancy_avg',
+            "5. Mouvements Stocks": 'buffer_movements',
+            "6. Historique Autonomie": None,
+            "7. Distance Parcourue": None,
+            "8. Production Hebdo": 'throughput_per_day',
+            "9. Production Détaillée": None,
+            "10. Occupation Machine": 'machine_utilization_pct',
+            "11. Temps Cycle & NVA": 'average_cycle_time_min',
+            "12. Taux Défaut": 'defect_rate_pct',
+            "13. Causes NC": None,
+            "14. Taux Conforme": 'yield_pct',
+            "15. Conso Énergie": 'energy_consumption_kwh',
+        }
+
         for label, dest in kpi_rows:
             col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
             with col_label:
@@ -450,7 +648,31 @@ elif page == "Admin":
                 )
                 st.session_state["kpi_permissions"][label] = selected_perms
             with col_data:
-                st.write("Random")
+                key = mapping.get(label)
+                value = None
+                if key is not None and isinstance(kpis, dict):
+                    value = kpis.get(key)
+                # show derived autonomy/machine values
+                if label == "1. Autonomie Robot":
+                    display_value = f"{autonomie_restante}%" if autonomie_restante is not None else "—"
+                elif label == "6. Historique Autonomie":
+                    display_value = "see Robot page"
+                elif label == "7. Distance Parcourue":
+                    display_value = "see Robot page"
+                elif label == "9. Production Détaillée":
+                    display_value = "see Qualité page"
+                elif label == "13. Causes NC":
+                    display_value = "see Qualité page"
+                else:
+                    if value is None:
+                        display_value = "—"
+                    else:
+                        # format numbers nicely
+                        if isinstance(value, float):
+                            display_value = f"{value:.2f}"
+                        else:
+                            display_value = str(value)
+                st.write(display_value)
 
     # Rerun after setting nav_target is unnecessary; button interaction already triggers rerun.
     if "nav_target" in st.session_state:
@@ -480,7 +702,11 @@ elif page == "Qualité":
 
         with p1:
             st.markdown("**Production de la semaine**")
-            production_hebdo = np.random.randint(600, 800)
+            # prefer throughput KPI to compute weekly production
+            if throughput is not None:
+                production_hebdo = int(round(throughput * 7))
+            else:
+                production_hebdo = np.random.randint(600, 800)
             objectif_hebdo = 720
 
             # Cadre 2x2
@@ -495,5 +721,5 @@ elif page == "Qualité":
                 unsafe_allow_html=True,
             )
 
-# Note: This file is the final corrected copy of the maquette UI. It attempts to fetch from the backend at BACKEND_URL for /orders but falls back to random/simulated data when the backend is not reachable.
+# Note: This file is the final corrected copy of the maquette UI. It attempts to fetch from the backend at BACKEND_URL for /orders and /machines but falls back to random/simulated data when the backend is not reachable.
 # To run: pip install -r requirements.txt then run `streamlit run frontend/maquette_final.py`.
