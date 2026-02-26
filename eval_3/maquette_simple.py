@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, time
 import mysql.connector
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
 import streamlit as st
 
 # Configuration de la page (Mode Large + Dark Mode)
@@ -74,16 +75,29 @@ if st.session_state.theme == "dark":
     st.markdown("""
         <style>
             :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
-            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); color: #ffffff; }
+            .css-1d391kg, .css-1v3fvcr, .css-1o4b6z4 { color: #ffffff; }
+            .stMarkdown, .stText, .stButton, .stSelectbox, .stNumberInput { color: #ffffff; }
+            .st-plotly-chart > div { background-color: transparent !important; }
         </style>
     """, unsafe_allow_html=True)
+    # créer et appliquer un template Plotly sombre pour que les graphiques n'aient pas de fond blanc
+    dark_template = go.layout.Template()
+    dark_template.layout.paper_bgcolor = "#0e1117"
+    dark_template.layout.plot_bgcolor = "#0e1117"
+    dark_template.layout.font = dict(color="#ffffff")
+    dark_template.layout.legend = dict(font=dict(color="#ffffff"))
+    pio.templates["dark_custom"] = dark_template
+    pio.templates.default = "dark_custom"
 else:
     st.markdown("""
         <style>
             :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
-            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); color: #000000; }
         </style>
     """, unsafe_allow_html=True)
+    # revenir au template par défaut pour Plotly en thème clair
+    pio.templates.default = None
 
 # Simulation Sidebar
 st.sidebar.title("📱 T'EleFan MES")
@@ -116,6 +130,51 @@ with st.sidebar.expander("Connexion SQL", expanded=False):
     db_password = st.text_input("Mot de passe", value=os.getenv("DB_PASSWORD", "example_password"), type="password")
     db_name = st.text_input("Base", value=os.getenv("DB_NAME", "MES4"))
 
+    st.markdown("---")
+    st.markdown("**Importer une base SQL (.sql)**")
+    uploaded_sql = st.file_uploader("Choisir un fichier .sql", type=["sql"], key="upload_sql")
+    if st.button("Importer la base SQL", key="import_sql"):
+        if uploaded_sql is None:
+            st.error("Aucun fichier .sql sélectionné.")
+        else:
+            # Lire le contenu du fichier uploadé
+            try:
+                sql_bytes = uploaded_sql.read()
+                try:
+                    sql_text = sql_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    # Essayer avec latin-1 si utf-8 échoue
+                    sql_text = sql_bytes.decode("latin-1")
+            except Exception as e:
+                st.error(f"Impossible de lire le fichier : {e}")
+                sql_text = None
+
+            if sql_text:
+                cfg = get_db_config(db_host, db_port, db_user, db_password, db_name)
+                ok, err = can_connect(cfg)
+                if not ok:
+                    st.error(f"Connexion SQL impossible : {err}")
+                else:
+                    st.info("Import en cours... ceci peut prendre plusieurs secondes.")
+                    try:
+                        conn = mysql.connector.connect(**cfg)
+                        cur = conn.cursor()
+                        # Exécuter plusieurs statements si présents
+                        for result in cur.execute(sql_text, multi=True):
+                            # for mysql-connector, iterer les résultats pour s'assurer de l'exécution
+                            try:
+                                _ = result.fetchall()
+                            except Exception:
+                                pass
+                        conn.commit()
+                        cur.close()
+                        conn.close()
+                        st.success("Import SQL terminé avec succès.")
+                    except mysql.connector.Error as err:
+                        st.error(f"Erreur lors de l'import SQL : {err}")
+                    except Exception as exc:
+                        st.error(f"Erreur inattendue lors de l'import : {exc}")
+
 db_config = get_db_config(db_host, db_port, db_user, db_password, db_name)
 db_ok, db_error = can_connect(db_config)
 if not db_ok:
@@ -129,8 +188,8 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", width='stretch'):
-        st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+    if st.button(f"Thème {'🌙' if st.session_state.theme == "dark" else '☀️'}", key="theme_toggle", width='stretch'):
+        st.session_state.theme = 'light' if st.session_state.theme == "dark" else 'dark'
         st.rerun()
     st.button("Déconnexion", key="sidebar_logout", width='stretch')
 st.sidebar.markdown("</div>", unsafe_allow_html=True)

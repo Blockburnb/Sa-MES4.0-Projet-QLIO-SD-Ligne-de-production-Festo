@@ -34,22 +34,27 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%REPO_RAW%/TELEFAN/FestoMES-2025-03-27.sql' -OutFile 'TELEFAN/FestoMES-2025-03-27.sql'"
 
 echo [4/5] Demarrage de la base MariaDB (Docker)...
+echo Docker n'est pas demarre automatiquement par ce script.
+echo Lance Docker Desktop (ou le daemon Docker) maintenant, puis appuie sur une touche pour continuer.
+pause >nul
+
 where docker >nul 2>&1
 if %ERRORLEVEL% neq 0 (
-  echo Docker introuvable. Installe Docker Desktop et relance.
+  echo docker non detecte. lancer docker manuellement puis relance le .bat
+  exit /b 1
+)
+
+docker compose version >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+  docker compose -f "TELEFAN\docker-compose.yml" up -d
+  for /f %%i in ('docker compose -f "TELEFAN\docker-compose.yml" ps -q mariadb') do set "DB_CID=%%i"
 ) else (
-  docker compose version >nul 2>&1
-  if %ERRORLEVEL% equ 0 (
-    docker compose -f "TELEFAN\docker-compose.yml" up -d
-    for /f %%i in ('docker compose -f "TELEFAN\docker-compose.yml" ps -q mariadb') do set "DB_CID=%%i"
-  ) else (
-    docker-compose -f "TELEFAN\docker-compose.yml" up -d
-    for /f %%i in ('docker-compose -f "TELEFAN\docker-compose.yml" ps -q mariadb') do set "DB_CID=%%i"
-  )
-  if not "%DB_CID%"=="" (
-    echo Import de la base SQL...
-    docker exec -i %DB_CID% mariadb --force -u%DB_USER% -p%DB_PASSWORD% %DB_NAME% < "TELEFAN\FestoMES-2025-03-27.sql"
-  )
+  docker-compose -f "TELEFAN\docker-compose.yml" up -d
+  for /f %%i in ('docker-compose -f "TELEFAN\docker-compose.yml" ps -q mariadb') do set "DB_CID=%%i"
+)
+if not "%DB_CID%"=="" (
+  echo Import de la base SQL...
+  docker exec -i %DB_CID% mariadb --force -u%DB_USER% -p%DB_PASSWORD% %DB_NAME% < "TELEFAN\FestoMES-2025-03-27.sql"
 )
 
 echo [5/5] Lancement du tableau de bord...
