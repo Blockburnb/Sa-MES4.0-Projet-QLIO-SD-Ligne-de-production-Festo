@@ -78,13 +78,69 @@ if st.session_state.theme == "dark":
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); color: #ffffff; }
             .css-1d391kg, .css-1v3fvcr, .css-1o4b6z4 { color: #ffffff; }
             .stMarkdown, .stText, .stButton, .stSelectbox, .stNumberInput { color: #ffffff; }
-            .st-plotly-chart > div { background-color: transparent !important; }
+
+            /* Labels au-dessus des champs : bien lisibles en blanc */
+            label, .stTextInput label, .stNumberInput label, .stTextArea label, .stSelectbox label, .stFileUploader label,
+            .stTextInput > label, .stTextInput > div > label, .stTextArea > label {
+                color: #ffffff !important;
+            }
+
+            /* Cibler explicitement les inputs texte / mot de passe / textarea fournis par Streamlit et navigateurs */
+            input[type="text"], input[type="password"], textarea,
+            .stTextInput input, .stTextInput textarea, .stTextArea textarea,
+            div[data-testid="stTextInput"] input, div[data-testid="stTextInput"] textarea,
+            input[role="textbox"], textarea[role="textbox"], input[aria-label], textarea[aria-label],
+            .stNumberInput input, .stNumberInput input[type="text"] {
+                color: #ffffff !important;
+                background-color: #000000 !important;
+                border: 1px solid #2b2f36 !important;
+            }
+
+            /* Certains thèmes Streamlit enveloppent l'input dans plusieurs divs - forcer le fond du conteneur */
+            div[data-testid="stTextInput"] > div, div[data-testid="stTextInput"] > div > div,
+            div[data-testid="stNumberInput"] > div, div[data-testid="stNumberInput"] > div > div,
+            .stTextInput > div, .stNumberInput > div, .stTextArea > div {
+                background-color: #000000 !important;
+            }
+
+            /* Placeholder color */
+            input::placeholder, textarea::placeholder, .stTextInput input::placeholder, .stTextArea textarea::placeholder {
+                color: #bfbfbf !important;
+                opacity: 1 !important;
+            }
+
+            /* File uploader & select boxes */
+            .stFileUploader, .stFileUploader input, .stSelectbox, .stSelectbox select {
+                color: #ffffff !important;
+                background-color: #000000 !important;
+            }
+
+            /* Forcer les fonds des graphes Plotly et des tables Streamlit en noir */
+            .st-plotly-chart > div { background-color: #000000 !important; }
+            .stDataFrame, .stTable, .stDataFrame table, .stTable table {
+                background-color: #000000 !important;
+                color: #ffffff !important;
+            }
+            /* tableau intérieur (thead/tbody) */
+            .stDataFrame thead th, .stTable thead th { background-color: #000000 !important; color: #ffffff !important; }
+            .stDataFrame tbody td, .stTable tbody td { background-color: #000000 !important; color: #ffffff !important; }
+
+            /* KPI / Metric cards and Streamlit metric components */
+            .stMetric, .stMetricValue, .stMetricLabel, .stMetricDelta, .stMetricContainer, .stMetric > div,
+            .streamlit-expanderHeader, .css-1v3fvcr, .css-1d391kg {
+                color: #ffffff !important;
+                background-color: #000000 !important;
+            }
+            .stMetricValue, .stMetricLabel { color: #ffffff !important; }
+
+            /* Petit ajustement pour les mini-cards HTML (production hebdo etc.) */
+            .mini-card-bg { background-color: #000000 !important; border: 1px solid #222 !important; }
         </style>
     """, unsafe_allow_html=True)
-    # créer et appliquer un template Plotly sombre pour que les graphiques n'aient pas de fond blanc
+    # créer et appliquer un template Plotly sombre avec fond noir
     dark_template = go.layout.Template()
-    dark_template.layout.paper_bgcolor = "#0e1117"
-    dark_template.layout.plot_bgcolor = "#0e1117"
+    dark_template.layout.paper_bgcolor = "#000000"
+    dark_template.layout.plot_bgcolor = "#000000"
     dark_template.layout.font = dict(color="#ffffff")
     dark_template.layout.legend = dict(font=dict(color="#ffffff"))
     pio.templates["dark_custom"] = dark_template
@@ -188,10 +244,10 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 col1, col2, col3 = st.sidebar.columns([1, 2, 1])
 with col2:
-    if st.button(f"Thème {'🌙' if st.session_state.theme == "dark" else '☀️'}", key="theme_toggle", width='stretch'):
-        st.session_state.theme = 'light' if st.session_state.theme == "dark" else 'dark'
+    if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", use_container_width=True):
+        st.session_state.theme = 'light' if st.session_state.theme == 'dark' else 'dark'
         st.rerun()
-    st.button("Déconnexion", key="sidebar_logout", width='stretch')
+    st.button("Déconnexion", key="sidebar_logout", use_container_width=True)
 st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
 # Header commun pour toutes les pages (sauf connexion)
@@ -364,7 +420,7 @@ if page == "Connexion":
         st.markdown("## 🔒 Authentification")
         st.text_input("Identifiant", placeholder="ex: benoit.riou")
         st.text_input("Mot de passe", type="password")
-        st.button("SE CONNECTER", type="primary", width='stretch')
+        st.button("SE CONNECTER", type="primary", use_container_width=True)
         
         # Mot de passe oublié en bas à droite
         st.markdown("<div style='text-align: right;'><a href='#'>Mot de passe oublié ?</a></div>", unsafe_allow_html=True)
@@ -488,12 +544,29 @@ elif page == "Stockage":
                 domain={"x": [0, 1], "y": [0, 1]},
             ))
             gauge_fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
-            st.plotly_chart(gauge_fig, width='stretch')
+            st.plotly_chart(gauge_fig, use_container_width=True)
         
         with col_stock2:
             st.subheader("Mouvements Stocks (7j)")
             chart_data = get_stock_movements(db_config, start_dt, end_dt)
-            st.line_chart(chart_data)
+            # Remplacer st.line_chart par un Plotly explicite pour garantir le thème sombre
+            fig_stock = go.Figure()
+            fig_stock.add_trace(go.Scatter(
+                x=list(range(len(chart_data))),
+                y=chart_data['Entrées'] if 'Entrées' in chart_data.columns else chart_data.iloc[:,0],
+                mode='lines+markers',
+                name='Entrées',
+                line=dict(color='#1f77b4', width=2)
+            ))
+            fig_stock.add_trace(go.Scatter(
+                x=list(range(len(chart_data))),
+                y=chart_data['Sorties'] if 'Sorties' in chart_data.columns else (chart_data.iloc[:,1] if chart_data.shape[1]>1 else None),
+                mode='lines+markers',
+                name='Sorties',
+                line=dict(color='#ff7f0e', width=2)
+            ))
+            fig_stock.update_layout(height=300, margin=dict(l=30, r=30, t=20, b=40), xaxis_title='Jour', yaxis_title='Nb mouvements')
+            st.plotly_chart(fig_stock, use_container_width=True)
 
 # PAGE 4: ROBOT
 elif page == "Robot":
@@ -547,7 +620,7 @@ elif page == "Robot":
                 height=350,
                 margin=dict(l=40, r=60, t=40, b=40)
             )
-            st.plotly_chart(fig_mixed, width='stretch')
+            st.plotly_chart(fig_mixed, use_container_width=True)
         
         with col_robot2:
             st.subheader("Distance parcourue")
@@ -571,7 +644,7 @@ elif page == "Robot":
                 margin=dict(l=40, r=40, t=40, b=40),
                 hovermode="x"
             )
-            st.plotly_chart(fig_distance, width='stretch')
+            st.plotly_chart(fig_distance, use_container_width=True)
 
 # PAGE 5: ADMIN
 elif page == "Admin":
@@ -622,7 +695,7 @@ elif page == "Admin":
         for label, dest in kpi_rows:
             col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
             with col_label:
-                st.button(label, key=f"kpi_nav_{label}", on_click=set_nav_target, args=(dest,), width='stretch')
+                st.button(label, key=f"kpi_nav_{label}", on_click=set_nav_target, args=(dest,), use_container_width=True)
             with col_perms:
                 current_perms = st.session_state["kpi_permissions"][label]
                 selected_perms = st.multiselect(
@@ -664,11 +737,11 @@ elif page == "Qualité":
             # Cadre 2x2
             st.markdown("""
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #000000; border-radius: 5px;">
                     <div style="color: #888; font-size: 12px; margin-bottom: 8px;">Réel</div>
                     <div style="font-size: 32px; font-weight: bold; color: #00cc00;">""" + str(production_hebdo) + """</div>
                 </div>
-                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
+                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #000000; border-radius: 5px;">
                     <div style="color: #888; font-size: 12px; margin-bottom: 8px;">OBJ</div>
                     <div style="font-size: 32px; font-weight: bold; color: #1f77b4;">""" + str(objectif_hebdo) + """</div>
                 </div>
@@ -682,7 +755,7 @@ elif page == "Qualité":
                 "Réel": [120, 120, 90, 160, 180],
                 "Écart": [30, 0, 10, 10, 0]
             }, index=["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"])
-            st.dataframe(prod_detail, width='stretch')
+            st.dataframe(prod_detail, use_container_width=True)
         
         st.divider()
         
@@ -712,7 +785,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
-            st.plotly_chart(fig_occupation, width='stretch')
+            st.plotly_chart(fig_occupation, use_container_width=True)
         
         with p4:
             st.markdown("**Temps de cycle**")
@@ -743,7 +816,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
-            st.plotly_chart(fig_cycle, width='stretch')
+            st.plotly_chart(fig_cycle, use_container_width=True)
     
     # ===== COLONNE DROITE: QUALITÉ =====
     with col_qual:
@@ -797,7 +870,7 @@ elif page == "Qualité":
             yaxis=dict(range=[0, 3]),
             showlegend=False, hovermode="x"
         )
-        st.plotly_chart(fig_nc, width='stretch')
+        st.plotly_chart(fig_nc, use_container_width=True)
         
         st.divider()
         
@@ -831,7 +904,7 @@ elif page == "Qualité":
                 yaxis2=dict(overlaying="y", side="right"),
                 showlegend=False, hovermode="x"
             )
-            st.plotly_chart(fig_causes, width='stretch')
+            st.plotly_chart(fig_causes, use_container_width=True)
         
         with q2:
             st.markdown("**Taux de conforme**")
