@@ -75,6 +75,35 @@ if st.session_state.theme == "dark":
         <style>
             :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stAppViewContainer"] h1,
+            [data-testid="stAppViewContainer"] h2,
+            [data-testid="stAppViewContainer"] h3,
+            [data-testid="stAppViewContainer"] h4,
+            [data-testid="stAppViewContainer"] h5,
+            [data-testid="stAppViewContainer"] h6 {
+                color: #e6edf3;
+            }
+            [data-testid="stAppViewContainer"] p,
+            [data-testid="stAppViewContainer"] li,
+            [data-testid="stAppViewContainer"] label,
+            [data-testid="stAppViewContainer"] span {
+                color: #c9d1d9;
+            }
+            [data-testid="stAppViewContainer"] small,
+            [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
+                color: #9da7b3 !important;
+            }
+            [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 1px solid #2d333b; }
+            [data-testid="stSidebar"] > div:first-child { background-color: #0d1117 !important; }
+            [data-testid="stSidebar"] * { color: #c9d1d9; }
+            [data-testid="stSidebar"] hr { border-color: #2d333b !important; }
+            [data-testid="stSidebar"] [data-baseweb="input"] > div,
+            [data-testid="stSidebar"] [data-baseweb="select"] > div,
+            [data-testid="stSidebar"] [data-baseweb="textarea"] > div {
+                background-color: #11151c !important;
+                border-color: #2d333b !important;
+                color: #c9d1d9 !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 else:
@@ -82,8 +111,130 @@ else:
         <style>
             :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stAppViewContainer"] h1,
+            [data-testid="stAppViewContainer"] h2,
+            [data-testid="stAppViewContainer"] h3,
+            [data-testid="stAppViewContainer"] h4,
+            [data-testid="stAppViewContainer"] h5,
+            [data-testid="stAppViewContainer"] h6 {
+                color: #1f2328;
+            }
+            [data-testid="stSidebar"] { background-color: #f6f8fa !important; border-right: 1px solid #d0d7de; }
+            [data-testid="stSidebar"] > div:first-child { background-color: #f6f8fa !important; }
         </style>
     """, unsafe_allow_html=True)
+
+
+def get_theme_tokens():
+    if st.session_state.theme == "dark":
+        return {
+            "card_bg": "#0d1117",
+            "card_border": "#444",
+            "label": "#888",
+            "text": "#c9d1d9",
+            "progress_bg": "#2d333b",
+        }
+    return {
+        "card_bg": "#ffffff",
+        "card_border": "#d0d7de",
+        "label": "#57606a",
+        "text": "#1f2328",
+        "progress_bg": "#eaeef2",
+    }
+
+
+THEME = get_theme_tokens()
+
+
+def render_kpi_card(target, label, value, value_color="#1f77b4", value_size=32):
+    target.markdown(
+        f"""
+        <div style="border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 16px; text-align: center;">
+            <div style="color: {THEME['label']}; font-size: 12px; margin-bottom: 8px;">{label}</div>
+            <div style="font-size: {value_size}px; color: {value_color}; font-weight: bold;">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_progress_kpi(target, title, left_text, right_text, left_pct, left_color="#00cc00", right_color="#cc0000"):
+    left_width = max(0.0, min(100.0, float(left_pct)))
+    right_width = max(0.0, 100.0 - left_width)
+    target.markdown(
+        f"""
+        <div style="border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 12px; margin-bottom: 20px;">
+            <div style="text-align: center; color: {THEME['text']}; font-weight: bold; font-size: 18px; margin-bottom: 10px;">{title}</div>
+            <div style="width: 100%; height: 48px; background-color: {THEME['progress_bg']}; border-radius: 5px; overflow: hidden; display: flex;">
+                <div style="width: {left_width}%; background-color: {left_color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {left_text}
+                </div>
+                <div style="width: {right_width}%; background-color: {right_color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                    {right_text}
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_table_card(target, df):
+    header_bg = "#11151c" if st.session_state.theme == "dark" else "#f6f8fa"
+    table_html = df.to_html(index=True, border=0)
+    target.markdown(
+        f"""
+        <div style="border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 10px;">
+            <style>
+                .kpi-table-wrap table {{ width: 100%; border-collapse: collapse; color: {THEME['text']}; }}
+                .kpi-table-wrap th {{ background-color: {header_bg}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: center; }}
+                .kpi-table-wrap td {{ background-color: {THEME['card_bg']}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: center; }}
+            </style>
+            <div class="kpi-table-wrap">{table_html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def apply_plot_theme(fig):
+    fig.update_layout(
+        paper_bgcolor=THEME["card_bg"],
+        plot_bgcolor=THEME["card_bg"],
+        font=dict(color=THEME["text"]),
+    )
+    fig.update_xaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
+    fig.update_yaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
+    return fig
+
+
+@st.cache_data(ttl=300)
+def get_available_data_period(db_config):
+    # Priorite aux donnees de production (Start/End), fallback sur les logs machine.
+    prod_df = query_df(
+        """
+        SELECT MIN(dt) AS min_dt, MAX(dt) AS max_dt
+        FROM (
+            SELECT Start AS dt FROM tblfinorderpos WHERE Start IS NOT NULL
+            UNION ALL
+            SELECT End AS dt FROM tblfinorderpos WHERE End IS NOT NULL
+        ) t
+        """,
+        (),
+        db_config,
+    )
+    if not prod_df.empty and pd.notna(prod_df.loc[0, "min_dt"]) and pd.notna(prod_df.loc[0, "max_dt"]):
+        return pd.to_datetime(prod_df.loc[0, "min_dt"]), pd.to_datetime(prod_df.loc[0, "max_dt"])
+
+    machine_df = query_df(
+        "SELECT MIN(TimeStamp) AS min_dt, MAX(TimeStamp) AS max_dt FROM tblmachinereport",
+        (),
+        db_config,
+    )
+    if not machine_df.empty and pd.notna(machine_df.loc[0, "min_dt"]) and pd.notna(machine_df.loc[0, "max_dt"]):
+        return pd.to_datetime(machine_df.loc[0, "min_dt"]), pd.to_datetime(machine_df.loc[0, "max_dt"])
+
+    return None, None
 
 # Simulation Sidebar
 st.sidebar.title("📱 T'EleFan MES")
@@ -120,8 +271,22 @@ db_config = get_db_config(db_host, db_port, db_user, db_password, db_name)
 db_ok, db_error = can_connect(db_config)
 if not db_ok:
     st.sidebar.warning(f"Connexion SQL impossible : {db_error}")
+    sql_status = "Hors ligne"
+    sql_color = "#cc0000"
+    data_period_text = "Indisponible"
+else:
+    sql_status = "Connecté"
+    sql_color = "#00aa00"
+    available_start, available_end = get_available_data_period(db_config)
+    if available_start is not None and available_end is not None:
+        data_period_text = f"{available_start.strftime('%d/%m/%Y')} - {available_end.strftime('%d/%m/%Y')}"
+    else:
+        data_period_text = "Aucune donnée"
 
 start_dt, end_dt = normalize_date_range(date_range)
+
+render_kpi_card(st.sidebar, "Statut SQL", sql_status, value_color=sql_color, value_size=20)
+render_kpi_card(st.sidebar, "Période des données", data_period_text, value_color="#1f77b4", value_size=16)
 
 st.sidebar.markdown("---")
 
@@ -325,61 +490,33 @@ elif page == "Temps Réel (Opérateur)":
     
     # KPIs verticaux avec barres personnalisées
     # KPI 1 : Autonomie Robot
-    pct_vert = (autonomie_restante / 100) * 100
-    pct_rouge = (autonomie_utilisee / 100) * 100
-    st.markdown(f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                🔋 Autonomie Robot
-            </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {pct_vert}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {autonomie_restante}% Restant
-                </div>
-                <div style="width: {pct_rouge}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {autonomie_utilisee}% Utilisé
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_progress_kpi(
+        st,
+        "🔋 Autonomie Robot",
+        f"{autonomie_restante}% Restant",
+        f"{autonomie_utilisee}% Utilisé",
+        autonomie_restante,
+    )
     
     # KPI 2 : OF Réalisés
     pct_of_fait = (of_realises / of_total) * 100
-    pct_of_reste = ((of_total - of_realises) / of_total) * 100
-    st.markdown(f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                ✅ OF Réalisés (Jour)
-            </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {pct_of_fait}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {of_realises} Réalisés
-                </div>
-                <div style="width: {pct_of_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {of_total - of_realises} Restants
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_progress_kpi(
+        st,
+        "✅ OF Réalisés (Jour)",
+        f"{of_realises} Réalisés",
+        f"{of_total - of_realises} Restants",
+        pct_of_fait,
+    )
     
     # KPI 3 : Production
     pct_prod_fait = (production_realisee / production_objectif) * 100
-    pct_prod_reste = 100 - pct_prod_fait if pct_prod_fait < 100 else 0
-    st.markdown(f"""
-        <div style="width: 100%; margin-bottom: 30px;">
-            <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 10px;">
-                📱 Production (Unités)
-            </div>
-            <div style="width: 100%; height: 50px; background-color: #333; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {min(pct_prod_fait, 100)}%; background-color: #00cc00; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {production_realisee} unités
-                </div>
-                <div style="width: {pct_prod_reste}%; background-color: #cc0000; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {'Objectif: ' + str(production_objectif) if pct_prod_reste > 0 else ''}
-                </div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    render_progress_kpi(
+        st,
+        "📱 Production (Unités)",
+        f"{production_realisee} unités",
+        f"Objectif: {production_objectif}" if pct_prod_fait < 100 else "",
+        min(pct_prod_fait, 100),
+    )
     
     st.markdown("### ⚠️ Alertes en cours")
     if autonomie_restante < 30:
@@ -429,12 +566,30 @@ elif page == "Stockage":
                 domain={"x": [0, 1], "y": [0, 1]},
             ))
             gauge_fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
+            apply_plot_theme(gauge_fig)
             st.plotly_chart(gauge_fig, width='stretch')
         
         with col_stock2:
             st.subheader("Mouvements Stocks (7j)")
             chart_data = get_stock_movements(db_config, start_dt, end_dt)
-            st.line_chart(chart_data)
+            fig_movements = go.Figure()
+            fig_movements.add_trace(go.Scatter(
+                x=chart_data.index,
+                y=chart_data["Entrées"],
+                name="Entrées",
+                line=dict(color="#1f77b4", width=3),
+                mode="lines+markers"
+            ))
+            fig_movements.add_trace(go.Scatter(
+                x=chart_data.index,
+                y=chart_data["Sorties"],
+                name="Sorties",
+                line=dict(color="#ff7f0e", width=3),
+                mode="lines+markers"
+            ))
+            fig_movements.update_layout(height=280, margin=dict(l=20, r=20, t=20, b=20), hovermode="x")
+            apply_plot_theme(fig_movements)
+            st.plotly_chart(fig_movements, width='stretch')
 
 # PAGE 4: ROBOT
 elif page == "Robot":
@@ -488,6 +643,7 @@ elif page == "Robot":
                 height=350,
                 margin=dict(l=40, r=60, t=40, b=40)
             )
+            apply_plot_theme(fig_mixed)
             st.plotly_chart(fig_mixed, width='stretch')
         
         with col_robot2:
@@ -512,11 +668,37 @@ elif page == "Robot":
                 margin=dict(l=40, r=40, t=40, b=40),
                 hovermode="x"
             )
+            apply_plot_theme(fig_distance)
             st.plotly_chart(fig_distance, width='stretch')
 
 # PAGE 5: ADMIN
 elif page == "Admin":
     display_header()
+
+    if st.session_state.theme == "dark":
+        st.markdown("""
+            <style>
+                [data-testid="stMain"] div[data-testid="stButton"] > button {
+                    background-color: #11151c;
+                    color: #c9d1d9;
+                    border: 1px solid #444;
+                }
+                [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
+                    border-color: #1f77b4;
+                    color: #ffffff;
+                }
+                [data-testid="stMain"] div[data-baseweb="select"] > div {
+                    background-color: #11151c !important;
+                    border-color: #444 !important;
+                    color: #c9d1d9 !important;
+                }
+                [data-testid="stMain"] span[data-baseweb="tag"] {
+                    background-color: #1b2430 !important;
+                    color: #c9d1d9 !important;
+                    border: 1px solid #444;
+                }
+            </style>
+        """, unsafe_allow_html=True)
     
     st.title("📊 Gestion de Production (Admin)")
 
@@ -551,11 +733,11 @@ elif page == "Admin":
     # En-têtes du tableau
     col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
     with col_label:
-        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>KPI</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; font-size: 12px; font-weight: bold; color: {THEME['label']};'>KPI</div>", unsafe_allow_html=True)
     with col_perms:
-        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>Droits d'accès</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; font-size: 12px; font-weight: bold; color: {THEME['label']};'>Droits d'accès</div>", unsafe_allow_html=True)
     with col_data:
-        st.markdown("<div style='text-align: center; font-size: 12px; font-weight: bold; color: #888;'>Données</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align: center; font-size: 12px; font-weight: bold; color: {THEME['label']};'>Données</div>", unsafe_allow_html=True)
 
     # Lignes du tableau
     table_container = st.container()
@@ -586,6 +768,12 @@ elif page == "Qualité":
     display_header()
     
     st.title("📊 Production Réel vs Prévisionnel | ✨ Qualité")
+
+    quality_dark = st.session_state.theme == "dark"
+    quality_card_bg = THEME["card_bg"]
+    quality_card_border = THEME["card_border"]
+    quality_label = THEME["label"]
+    quality_text = THEME["text"]
     
     # Layout 2 colonnes principales
     col_prod, col_qual = st.columns(2, gap="large")
@@ -601,16 +789,16 @@ elif page == "Qualité":
             st.markdown("**Production de la semaine**")
             production_hebdo = get_production_hebdo(db_config, start_dt, end_dt)
             objectif_hebdo = 720
-            
+
             # Cadre 2x2
             st.markdown("""
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
-                    <div style="color: #888; font-size: 12px; margin-bottom: 8px;">Réel</div>
+                <div style="border: 1px solid """ + quality_card_border + """; padding: 15px; text-align: center; background-color: """ + quality_card_bg + """; border-radius: 5px;">
+                    <div style="color: """ + quality_label + """; font-size: 12px; margin-bottom: 8px;">Réel</div>
                     <div style="font-size: 32px; font-weight: bold; color: #00cc00;">""" + str(production_hebdo) + """</div>
                 </div>
-                <div style="border: 1px solid #444; padding: 15px; text-align: center; background-color: #0d1117; border-radius: 5px;">
-                    <div style="color: #888; font-size: 12px; margin-bottom: 8px;">OBJ</div>
+                <div style="border: 1px solid """ + quality_card_border + """; padding: 15px; text-align: center; background-color: """ + quality_card_bg + """; border-radius: 5px;">
+                    <div style="color: """ + quality_label + """; font-size: 12px; margin-bottom: 8px;">OBJ</div>
                     <div style="font-size: 32px; font-weight: bold; color: #1f77b4;">""" + str(objectif_hebdo) + """</div>
                 </div>
             </div>
@@ -623,7 +811,7 @@ elif page == "Qualité":
                 "Réel": [120, 120, 90, 160, 180],
                 "Écart": [30, 0, 10, 10, 0]
             }, index=["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"])
-            st.dataframe(prod_detail, width='stretch')
+            render_table_card(p2, prod_detail)
         
         st.divider()
         
@@ -653,6 +841,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
+            apply_plot_theme(fig_occupation)
             st.plotly_chart(fig_occupation, width='stretch')
         
         with p4:
@@ -684,6 +873,7 @@ elif page == "Qualité":
                 xaxis_title="", yaxis_title="",
                 showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
             )
+            apply_plot_theme(fig_cycle)
             st.plotly_chart(fig_cycle, width='stretch')
     
     # ===== COLONNE DROITE: QUALITÉ =====
@@ -738,6 +928,7 @@ elif page == "Qualité":
             yaxis=dict(range=[0, 3]),
             showlegend=False, hovermode="x"
         )
+        apply_plot_theme(fig_nc)
         st.plotly_chart(fig_nc, width='stretch')
         
         st.divider()
@@ -772,18 +963,17 @@ elif page == "Qualité":
                 yaxis2=dict(overlaying="y", side="right"),
                 showlegend=False, hovermode="x"
             )
+            apply_plot_theme(fig_causes)
             st.plotly_chart(fig_causes, width='stretch')
         
         with q2:
             st.markdown("**Taux de conforme**")
             taux_conforme = get_taux_conforme(db_config, start_dt, end_dt)
-            st.markdown(f"<div style='text-align: center; font-size: 48px; color: #00cc00; font-weight: bold;'>{taux_conforme:.0f}%</div>", 
-                       unsafe_allow_html=True)
+            render_kpi_card(q2, "Conforme", f"{taux_conforme:.0f}%", value_color="#00cc00", value_size=48)
         
         st.divider()
         
         # KPI 15
         st.markdown("**Moyenne de la consommation d'énergie**")
         conso_energie = get_conso_energie(db_config, start_dt, end_dt)
-        st.markdown(f"<div style='text-align: center; font-size: 32px; color: #1f77b4; font-weight: bold;'>{conso_energie:.0f} kW/h</div>", 
-                   unsafe_allow_html=True)
+        render_kpi_card(st, "Consommation moyenne", f"{conso_energie:.0f} kW/h", value_color="#1f77b4", value_size=32)
