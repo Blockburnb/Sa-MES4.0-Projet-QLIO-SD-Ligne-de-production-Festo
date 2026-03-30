@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, time
+from html import escape
 
 import mysql.connector
 import pandas as pd
@@ -75,6 +76,8 @@ if st.session_state.theme == "dark":
         <style>
             :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stHeader"] { background-color: #0d1117 !important; }
+            [data-testid="stToolbar"] { background-color: #0d1117 !important; }
             [data-testid="stAppViewContainer"] h1,
             [data-testid="stAppViewContainer"] h2,
             [data-testid="stAppViewContainer"] h3,
@@ -161,20 +164,26 @@ def render_kpi_card(target, label, value, value_color="#1f77b4", value_size=32):
 def render_progress_kpi(target, title, left_text, right_text, left_pct, left_color="#00cc00", right_color="#cc0000"):
     left_width = max(0.0, min(100.0, float(left_pct)))
     right_width = max(0.0, 100.0 - left_width)
+    title_safe = escape(str(title))
+    left_text_safe = escape(str(left_text))
+    right_text_safe = escape(str(right_text))
+    right_block = ""
+    if right_width > 0 or right_text_safe:
+        right_block = (
+            f"<div style=\"width: {right_width}%; background-color: {right_color}; display: flex; align-items: center; "
+            f"justify-content: center; color: white; font-weight: bold;\">{right_text_safe}</div>"
+        )
+    html = (
+        f"<div style=\"border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 12px; margin-bottom: 20px;\">"
+        f"<div style=\"text-align: center; color: {THEME['text']}; font-weight: bold; font-size: 18px; margin-bottom: 10px;\">{title_safe}</div>"
+        f"<div style=\"width: 100%; height: 48px; background-color: {THEME['progress_bg']}; border-radius: 5px; overflow: hidden; display: flex;\">"
+        f"<div style=\"width: {left_width}%; background-color: {left_color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;\">{left_text_safe}</div>"
+        f"{right_block}"
+        "</div>"
+        "</div>"
+    )
     target.markdown(
-        f"""
-        <div style="border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 12px; margin-bottom: 20px;">
-            <div style="text-align: center; color: {THEME['text']}; font-weight: bold; font-size: 18px; margin-bottom: 10px;">{title}</div>
-            <div style="width: 100%; height: 48px; background-color: {THEME['progress_bg']}; border-radius: 5px; overflow: hidden; display: flex;">
-                <div style="width: {left_width}%; background-color: {left_color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {left_text}
-                </div>
-                <div style="width: {right_width}%; background-color: {right_color}; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
-                    {right_text}
-                </div>
-            </div>
-        </div>
-        """,
+        html,
         unsafe_allow_html=True,
     )
 
@@ -198,13 +207,46 @@ def render_table_card(target, df):
 
 
 def apply_plot_theme(fig):
+    legend_bg = "rgba(13, 17, 23, 0.92)" if st.session_state.theme == "dark" else "rgba(255, 255, 255, 0.96)"
+    legend_border = "#2d333b" if st.session_state.theme == "dark" else "#d0d7de"
     fig.update_layout(
         paper_bgcolor=THEME["card_bg"],
         plot_bgcolor=THEME["card_bg"],
         font=dict(color=THEME["text"]),
+        title_font_color=THEME["text"],
+        legend_font_color=THEME["text"],
+        legend_bgcolor=legend_bg,
+        legend_bordercolor=legend_border,
+        legend_borderwidth=1,
+        xaxis=dict(
+            title_font=dict(color=THEME["text"]),
+            tickfont=dict(color=THEME["text"]),
+        ),
+        yaxis=dict(
+            title_font=dict(color=THEME["text"]),
+            tickfont=dict(color=THEME["text"]),
+        ),
+        yaxis2=dict(
+            title_font=dict(color=THEME["text"]),
+            tickfont=dict(color=THEME["text"]),
+        ),
     )
     fig.update_xaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
     fig.update_yaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
+
+    # Evite l'affichage de textes "undefined" sur certains graphiques sans titre explicite.
+    title_text = getattr(getattr(fig.layout, "title", None), "text", None)
+    if title_text is None or str(title_text).strip().lower() == "undefined":
+        fig.update_layout(title_text="")
+
+    for axis_name in ("xaxis", "yaxis", "xaxis2", "yaxis2"):
+        axis = getattr(fig.layout, axis_name, None)
+        if axis is None:
+            continue
+        axis_title_text = getattr(getattr(axis, "title", None), "text", None)
+        if axis_title_text is None or str(axis_title_text).strip().lower() == "undefined":
+            fig.update_layout(**{f"{axis_name}_title_text": ""})
+
     return fig
 
 
@@ -500,11 +542,12 @@ elif page == "Temps Réel (Opérateur)":
     
     # KPI 2 : OF Réalisés
     pct_of_fait = (of_realises / of_total) * 100
+    of_restants = max(of_total - of_realises, 0)
     render_progress_kpi(
         st,
         "✅ OF Réalisés (Jour)",
         f"{of_realises} Réalisés",
-        f"{of_total - of_realises} Restants",
+        f"{of_restants} Restants" if of_restants > 0 else "",
         pct_of_fait,
     )
     
@@ -641,7 +684,14 @@ elif page == "Robot":
                 ),
                 hovermode="x unified",
                 height=350,
-                margin=dict(l=40, r=60, t=40, b=40)
+                margin=dict(l=40, r=60, t=40, b=85),
+                legend=dict(
+                    orientation="h",
+                    x=0.5,
+                    y=-0.25,
+                    xanchor="center",
+                    yanchor="top",
+                ),
             )
             apply_plot_theme(fig_mixed)
             st.plotly_chart(fig_mixed, width='stretch')
