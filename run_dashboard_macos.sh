@@ -79,15 +79,17 @@ ensure_git_sync() {
     fail "Synchronisation Git impossible: modifications locales detectees dans $PROJECT_DIR (commit/stash requis)."
   fi
 
-  log "Synchronisation Git de la branche ${REPO_BRANCH}..."
-  git fetch origin "$REPO_BRANCH" >/dev/null 2>&1 || fail "Echec de git fetch origin ${REPO_BRANCH}. Verifie reseau/acces GitHub."
-
   current_branch="$(git rev-parse --abbrev-ref HEAD)"
   if [[ "$current_branch" != "$REPO_BRANCH" ]]; then
     git checkout "$REPO_BRANCH" >/dev/null 2>&1 || fail "Impossible de basculer sur la branche ${REPO_BRANCH}."
   fi
 
-  git pull --ff-only origin "$REPO_BRANCH" >/dev/null 2>&1 || fail "Echec du git pull --ff-only sur ${REPO_BRANCH}."
+  log "Synchronisation Git de la branche ${REPO_BRANCH}..."
+  if git fetch origin "$REPO_BRANCH" >/dev/null 2>&1; then
+    git pull --ff-only origin "$REPO_BRANCH" >/dev/null 2>&1 || fail "Echec du git pull --ff-only sur ${REPO_BRANCH}."
+  else
+    warn "Impossible de joindre GitHub. Synchronisation Git ignoree, demarrage avec la version locale."
+  fi
 }
 
 port_in_use() {

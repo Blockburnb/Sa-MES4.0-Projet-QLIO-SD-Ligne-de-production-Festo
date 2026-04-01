@@ -90,11 +90,6 @@ function Ensure-GitSync {
     }
 
     Log-Info "Synchronisation Git de la branche $repoBranch..."
-    git fetch origin $repoBranch *> $null
-    if ($LASTEXITCODE -ne 0) {
-        Fail "Echec de git fetch origin $repoBranch. Verifie reseau/acces GitHub."
-    }
-
     $currentBranch = (git rev-parse --abbrev-ref HEAD).Trim()
     if ($currentBranch -ne $repoBranch) {
         git checkout $repoBranch *> $null
@@ -103,9 +98,14 @@ function Ensure-GitSync {
         }
     }
 
-    git pull --ff-only origin $repoBranch *> $null
+    git fetch origin $repoBranch *> $null
     if ($LASTEXITCODE -ne 0) {
-        Fail "Echec du git pull --ff-only sur $repoBranch."
+        Log-Warn "Impossible de joindre GitHub. Synchronisation Git ignoree, demarrage avec la version locale."
+    } else {
+        git pull --ff-only origin $repoBranch *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Echec du git pull --ff-only sur $repoBranch."
+        }
     }
 }
 
