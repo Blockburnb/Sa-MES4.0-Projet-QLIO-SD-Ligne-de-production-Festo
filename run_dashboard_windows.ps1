@@ -47,6 +47,7 @@ function Fail([string]$msg) {
 }
 
 function Ensure-GitSync {
+    $local:ErrorActionPreference = "Continue"
     $git = Get-Command git -ErrorAction SilentlyContinue
     if (-not $git) {
         Log-Warn "Git introuvable. La synchronisation automatique est desactivee."
