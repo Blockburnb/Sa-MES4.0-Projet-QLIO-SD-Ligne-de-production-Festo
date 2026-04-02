@@ -172,7 +172,8 @@ function Get-ComposeCommand {
 }
 
 function Invoke-Compose([string[]]$composeCmd, [string[]]$args) {
-    & $composeCmd[0] @($composeCmd[1..($composeCmd.Length-1)]) @args
+    $restArgs = @($composeCmd | Select-Object -Skip 1)
+    & $composeCmd[0] @restArgs @args
     return $LASTEXITCODE
 }
 
@@ -258,7 +259,9 @@ function Start-DockerStack {
     }
 
     $psArgs = @("-f", $composeFile, "ps", "-q", "mariadb")
-    $dbContainerId = (& $composeCmd[0] @($composeCmd[1..($composeCmd.Length-1)]) @psArgs 2>$null).Trim()
+    $restArgs = @($composeCmd | Select-Object -Skip 1)
+    $psRaw = & $composeCmd[0] @restArgs @psArgs 2>$null
+    $dbContainerId = if ($psRaw) { ($psRaw -join "").Trim() } else { "" }
     if ([string]::IsNullOrWhiteSpace($dbContainerId)) {
         Fail "Container mariadb non detecte apres demarrage. Verifie le service 'mariadb' puis lance les logs Docker."
     }
