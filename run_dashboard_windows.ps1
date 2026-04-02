@@ -49,7 +49,8 @@ function Fail([string]$msg) {
 function Ensure-GitSync {
     $git = Get-Command git -ErrorAction SilentlyContinue
     if (-not $git) {
-        Fail "Git introuvable. Installe Git puis relance."
+        Log-Warn "Git introuvable. La synchronisation automatique est desactivee."
+        return
     }
 
     $bootstrapDir = Join-Path $rootDir "project_main"
@@ -60,13 +61,15 @@ function Ensure-GitSync {
             Update-ProjectPaths
         } else {
             if ((Test-Path $bootstrapDir) -and ((Get-ChildItem -Force $bootstrapDir | Measure-Object).Count -gt 0)) {
-                Fail "Le dossier de bootstrap Git existe deja et n'est pas vide: $bootstrapDir"
+                Log-Warn "Le dossier de bootstrap Git existe deja et n'est pas vide: $bootstrapDir. Synchronisation ignoree."
+                return
             }
 
             Log-Info "Depot Git non detecte. Clonage de la branche $repoBranch..."
             git clone --branch $repoBranch --single-branch $repoUrl $bootstrapDir *> $null
             if ($LASTEXITCODE -ne 0) {
-                Fail "Echec du clone Git depuis $repoUrl"
+                Log-Warn "Echec du clone Git depuis $repoUrl. Le dashboard continuera avec les fichiers locaux."
+                return
             }
 
             $script:projectDir = $bootstrapDir
@@ -78,34 +81,38 @@ function Ensure-GitSync {
 
     git rev-parse --is-inside-work-tree *> $null
     if ($LASTEXITCODE -ne 0) {
-        Fail "Le dossier projet n'est pas un depot Git valide: $projectDir"
+        Log-Warn "Le dossier projet n'est pas un depot Git valide: $projectDir. Synchronisation ignoree."
+        return
     }
 
-    git diff --quiet
+    git diff --quiet 2>$null
     $dirtyWorktree = $LASTEXITCODE -ne 0
-    git diff --cached --quiet
+    git diff --cached --quiet 2>$null
     $dirtyIndex = $LASTEXITCODE -ne 0
     if ($dirtyWorktree -or $dirtyIndex) {
-        Fail "Synchronisation Git impossible: modifications locales detectees dans $projectDir (commit/stash requis)."
+        Log-Warn "Modifications locales detectees dans $projectDir. Synchronisation Git ignoree."
+        return
     }
 
     Log-Info "Synchronisation Git de la branche $repoBranch..."
     git fetch origin $repoBranch *> $null
     if ($LASTEXITCODE -ne 0) {
-        Fail "Echec de git fetch origin $repoBranch. Verifie reseau/acces GitHub."
+        Log-Warn "Echec de git fetch origin $repoBranch. Verifie reseau/acces GitHub. Le dashboard continuera avec la version locale."
+        return
     }
 
     $currentBranch = (git rev-parse --abbrev-ref HEAD).Trim()
     if ($currentBranch -ne $repoBranch) {
         git checkout $repoBranch *> $null
         if ($LASTEXITCODE -ne 0) {
-            Fail "Impossible de basculer sur la branche $repoBranch."
+            Log-Warn "Impossible de basculer sur la branche $repoBranch. Le dashboard continuera sur la branche courante."
+            return
         }
     }
 
     git pull --ff-only origin $repoBranch *> $null
     if ($LASTEXITCODE -ne 0) {
-        Fail "Echec du git pull --ff-only sur $repoBranch."
+        Log-Warn "Echec du git pull --ff-only sur $repoBranch. Le dashboard continuera avec la version locale."
     }
 }
 

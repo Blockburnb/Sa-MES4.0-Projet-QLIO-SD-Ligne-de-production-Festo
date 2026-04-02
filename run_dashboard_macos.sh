@@ -51,7 +51,8 @@ ensure_git_sync() {
   local current_branch
 
   if ! command -v git >/dev/null 2>&1; then
-    fail "Git introuvable. Installe Git puis relance."
+    warn "Git introuvable. La synchronisation automatique est desactivee."
+    return 0
   fi
 
   if [[ ! -d "$PROJECT_DIR/.git" ]]; then
@@ -60,10 +61,14 @@ ensure_git_sync() {
       update_project_paths
     else
       if [[ -d "$bootstrap_dir" ]] && [[ -n "$(ls -A "$bootstrap_dir" 2>/dev/null)" ]]; then
-        fail "Le dossier de bootstrap Git existe deja et n'est pas vide: $bootstrap_dir"
+        warn "Le dossier de bootstrap Git existe deja et n'est pas vide: $bootstrap_dir. Synchronisation ignoree."
+        return 0
       fi
       log "Depot Git non detecte. Clonage de la branche ${REPO_BRANCH}..."
-      git clone --branch "$REPO_BRANCH" --single-branch "$REPO_URL" "$bootstrap_dir" >/dev/null 2>&1 || fail "Echec du clone Git depuis $REPO_URL"
+      if ! git clone --branch "$REPO_BRANCH" --single-branch "$REPO_URL" "$bootstrap_dir" >/dev/null 2>&1; then
+        warn "Echec du clone Git depuis $REPO_URL. Le dashboard continuera avec les fichiers locaux."
+        return 0
+      fi
       PROJECT_DIR="$bootstrap_dir"
       update_project_paths
     fi
@@ -72,22 +77,32 @@ ensure_git_sync() {
   cd "$PROJECT_DIR"
 
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    fail "Le dossier projet n'est pas un depot Git valide: $PROJECT_DIR"
+    warn "Le dossier projet n'est pas un depot Git valide: $PROJECT_DIR. Synchronisation ignoree."
+    return 0
   fi
 
-  if ! git diff --quiet || ! git diff --cached --quiet; then
-    fail "Synchronisation Git impossible: modifications locales detectees dans $PROJECT_DIR (commit/stash requis)."
+  if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+    warn "Modifications locales detectees dans $PROJECT_DIR. Synchronisation Git ignoree."
+    return 0
   fi
 
   log "Synchronisation Git de la branche ${REPO_BRANCH}..."
-  git fetch origin "$REPO_BRANCH" >/dev/null 2>&1 || fail "Echec de git fetch origin ${REPO_BRANCH}. Verifie reseau/acces GitHub."
+  if ! git fetch origin "$REPO_BRANCH" >/dev/null 2>&1; then
+    warn "Echec de git fetch origin ${REPO_BRANCH}. Verifie reseau/acces GitHub. Le dashboard continuera avec la version locale."
+    return 0
+  fi
 
   current_branch="$(git rev-parse --abbrev-ref HEAD)"
   if [[ "$current_branch" != "$REPO_BRANCH" ]]; then
-    git checkout "$REPO_BRANCH" >/dev/null 2>&1 || fail "Impossible de basculer sur la branche ${REPO_BRANCH}."
+    if ! git checkout "$REPO_BRANCH" >/dev/null 2>&1; then
+      warn "Impossible de basculer sur la branche ${REPO_BRANCH}. Le dashboard continuera sur la branche courante."
+      return 0
+    fi
   fi
 
-  git pull --ff-only origin "$REPO_BRANCH" >/dev/null 2>&1 || fail "Echec du git pull --ff-only sur ${REPO_BRANCH}."
+  if ! git pull --ff-only origin "$REPO_BRANCH" >/dev/null 2>&1; then
+    warn "Echec du git pull --ff-only sur ${REPO_BRANCH}. Le dashboard continuera avec la version locale."
+  fi
 }
 
 port_in_use() {
