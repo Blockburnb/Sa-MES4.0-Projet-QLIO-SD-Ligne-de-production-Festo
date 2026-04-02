@@ -1,5 +1,6 @@
 import streamlit.web.cli as stcli
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -31,7 +32,20 @@ DB_NAME_DEFAULT  = "MES4"
 # Helpers Docker
 # ---------------------------------------------------------------------------
 
+# Chemins connus de Docker Desktop sous Windows
+_DOCKER_DESKTOP_PATHS_WINDOWS = [
+    os.path.expandvars(r"%PROGRAMFILES%\Docker\Docker\Docker Desktop.exe"),
+    os.path.expandvars(r"%LOCALAPPDATA%\Programs\Docker\Docker\Docker Desktop.exe"),
+    r"C:\Program Files\Docker\Docker\Docker Desktop.exe",
+]
+
+# Sous Windows, éviter l'apparition de fenêtres console pour les sous-processus
+_NO_WINDOW = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
+
+
 def _run(cmd, **kwargs):
+    if _NO_WINDOW:
+        kwargs.setdefault("creationflags", _NO_WINDOW)
     return subprocess.run(cmd, **kwargs)
 
 
@@ -52,11 +66,112 @@ def get_compose_cmd():
     return None
 
 
+def docker_installed():
+    """Retourne True si l'exécutable docker est accessible dans le PATH."""
+    try:
+        result = _run(["docker", "--version"], capture_output=True)
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
 def docker_running():
     try:
         return _run(["docker", "info"], capture_output=True).returncode == 0
     except FileNotFoundError:
         return False
+
+
+def find_docker_desktop():
+    """Retourne le chemin de Docker Desktop sur Windows, ou None s'il est introuvable."""
+    if platform.system() != "Windows":
+        return None
+    for path in _DOCKER_DESKTOP_PATHS_WINDOWS:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def launch_docker_desktop(path):
+    """Lance Docker Desktop en arrière-plan (sans bloquer)."""
+    print("[INFO] Lancement de Docker Desktop...")
+    subprocess.Popen(
+        [path],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=_NO_WINDOW,
+    )
+
+
+def launch_docker_platform():
+    """Tente de démarrer Docker selon le système d'exploitation. Retourne True si un lancement a été tenté."""
+    system = platform.system()
+    if system == "Windows":
+        path = find_docker_desktop()
+        if path:
+            launch_docker_desktop(path)
+            return True
+        return False
+    if system == "Darwin":
+        # macOS : ouvrir l'application Docker
+        try:
+            subprocess.Popen(
+                ["open", "-a", "Docker"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            return False
+    if system == "Linux":
+        # Linux : démarrer le service Docker via systemctl (nécessite les droits root/sudo)
+        try:
+            result = subprocess.run(
+                ["systemctl", "start", "docker"],
+                capture_output=True,
+            )
+            return result.returncode == 0
+        except FileNotFoundError:
+            return False
+    return False
+
+
+def wait_for_docker(timeout=120, interval=3):
+    """Attend que Docker soit opérationnel. Retourne True si prêt dans le délai imparti."""
+    print("[INFO] Attente du démarrage de Docker", end="", flush=True)
+    elapsed = 0
+    while elapsed < timeout:
+        if docker_running():
+            print(" OK")
+            return True
+        time.sleep(interval)
+        elapsed += interval
+        print(".", end="", flush=True)
+    print()
+    return False
+
+
+def ensure_docker_running():
+    """S'assure que Docker est démarré. Lance Docker si nécessaire. Retourne True si Docker est disponible."""
+    if docker_running():
+        return True
+
+    # Docker est installé mais pas démarré : tenter de le lancer
+    if not docker_installed():
+        print("[WARN] Docker n'est pas installé sur cet ordinateur. Étape DB ignorée.")
+        return False
+
+    print("[INFO] Docker est installé mais n'est pas démarré.")
+    launched = launch_docker_platform()
+    if not launched:
+        print("[WARN] Impossible de lancer Docker automatiquement. Étape DB ignorée.")
+        return False
+
+    if not wait_for_docker():
+        print("[WARN] Docker n'a pas démarré dans le délai imparti. Étape DB ignorée.")
+        return False
+
+    return True
 
 
 def start_docker_stack(compose_cmd):
@@ -161,8 +276,7 @@ def setup_database():
         print(f"[WARN] Fichier Docker Compose introuvable : {COMPOSE_FILE}. Étape DB ignorée.")
         return
 
-    if not docker_running():
-        print("[WARN] Docker n'est pas disponible. Étape DB ignorée.")
+    if not ensure_docker_running():
         return
 
     compose_cmd = get_compose_cmd()
