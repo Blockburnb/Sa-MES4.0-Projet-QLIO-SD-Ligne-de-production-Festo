@@ -1,0 +1,1 @@
+pyinstaller --noconfirm --onefile --windowed --icon=icone.ico --collect-all streamlit --collect-all plotly --collect-all mysql.connector --add-data "app.py;." --add-data "icone.png;." launcher.py
