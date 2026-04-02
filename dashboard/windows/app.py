@@ -421,56 +421,40 @@ if "db_settings" not in st.session_state:
 
 ensure_kpi_permissions()
 
-# --- CSS MODIFIÉ POUR CORRIGER LE THÈME CLAIR (INCLUANT PAGE ADMIN) ---
+# --- CSS MODIFIÉ POUR CORRIGER LE THÈME CLAIR ET CACHER LE MENU COMPLET ---
 if st.session_state.theme == "dark":
     st.markdown("""
         <style>
             :root { --primary-color: #1f77b4; --background-color: #0e1117; --secondary-background-color: #161b22; }
+            
+            /* Cacher la toolbar Streamlit (les 3 points + bouton Deploy) */
+            [data-testid="stToolbar"] { display: none !important; }
+            
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
             [data-testid="stHeader"] { background-color: #0d1117 !important; }
-            [data-testid="stToolbar"] { background-color: #0d1117 !important; }
-            [data-testid="stAppViewContainer"] h1,
-            [data-testid="stAppViewContainer"] h2,
-            [data-testid="stAppViewContainer"] h3,
-            [data-testid="stAppViewContainer"] h4,
-            [data-testid="stAppViewContainer"] h5,
-            [data-testid="stAppViewContainer"] h6 {
-                color: #e6edf3;
-            }
-            [data-testid="stAppViewContainer"] p,
-            [data-testid="stAppViewContainer"] li,
-            [data-testid="stAppViewContainer"] label,
-            [data-testid="stAppViewContainer"] span {
-                color: #c9d1d9;
-            }
-            [data-testid="stAppViewContainer"] small,
-            [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
-                color: #9da7b3 !important;
-            }
+            [data-testid="stAppViewContainer"] h1, h2, h3, h4, h5, h6 { color: #e6edf3; }
+            [data-testid="stAppViewContainer"] p, li, label, span { color: #c9d1d9; }
+            [data-testid="stAppViewContainer"] small, [data-testid="stCaptionContainer"] { color: #9da7b3 !important; }
             [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 1px solid #2d333b; }
             [data-testid="stSidebar"] > div:first-child { background-color: #0d1117 !important; }
             [data-testid="stSidebar"] * { color: #c9d1d9; }
             [data-testid="stSidebar"] hr { border-color: #2d333b !important; }
-            [data-testid="stSidebar"] [data-baseweb="input"] > div,
-            [data-testid="stSidebar"] [data-baseweb="select"] > div,
-            [data-testid="stSidebar"] [data-baseweb="textarea"] > div {
+            
+            /* Inputs globaux Dark (incluant la boite de l'oeil mdp) */
+            input, select, textarea, [data-baseweb="input"], [data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div {
                 background-color: #11151c !important;
                 border-color: #2d333b !important;
                 color: #c9d1d9 !important;
             }
-            [data-testid="stMain"] div[data-testid="stButton"] > button {
-                background-color: #11151c;
-                color: #c9d1d9;
-                border: 1px solid #444;
-            }
-            [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
-                border-color: #1f77b4;
-                color: #ffffff;
-            }
-            [data-testid="stMain"] div[data-baseweb="select"] > div {
+            /* Cibler tous les boutons secondaires et formulaires */
+            button[kind="secondary"], button[kind="secondaryFormSubmit"] {
                 background-color: #11151c !important;
-                border-color: #444 !important;
                 color: #c9d1d9 !important;
+                border: 1px solid #444 !important;
+            }
+            button[kind="secondary"]:hover, button[kind="secondaryFormSubmit"]:hover {
+                border-color: #1f77b4 !important;
+                color: #ffffff !important;
             }
             [data-testid="stMain"] span[data-baseweb="tag"] {
                 background-color: #1b2430 !important;
@@ -483,68 +467,47 @@ else:
     st.markdown("""
         <style>
             :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
+            
+            /* Cacher la toolbar Streamlit (les 3 points + bouton Deploy) */
+            [data-testid="stToolbar"] { display: none !important; }
+            
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
             [data-testid="stHeader"] { background-color: #f6f8fa !important; }
-            [data-testid="stToolbar"] { background-color: #f6f8fa !important; }
-            [data-testid="stAppViewContainer"] h1,
-            [data-testid="stAppViewContainer"] h2,
-            [data-testid="stAppViewContainer"] h3,
-            [data-testid="stAppViewContainer"] h4,
-            [data-testid="stAppViewContainer"] h5,
-            [data-testid="stAppViewContainer"] h6 {
-                color: #1f2328;
-            }
-            [data-testid="stAppViewContainer"] p,
-            [data-testid="stAppViewContainer"] li,
-            [data-testid="stAppViewContainer"] label,
-            [data-testid="stAppViewContainer"] span {
-                color: #1f2328;
-            }
-            [data-testid="stAppViewContainer"] small,
-            [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
-                color: #57606a !important;
-            }
+            [data-testid="stAppViewContainer"] h1, h2, h3, h4, h5, h6 { color: #1f2328; }
+            [data-testid="stAppViewContainer"] p, li, label, span { color: #1f2328; }
+            [data-testid="stAppViewContainer"] small, [data-testid="stCaptionContainer"] { color: #57606a !important; }
             [data-testid="stSidebar"] { background-color: #f6f8fa !important; border-right: 1px solid #d0d7de; }
             [data-testid="stSidebar"] > div:first-child { background-color: #f6f8fa !important; }
             [data-testid="stSidebar"] * { color: #1f2328; }
             [data-testid="stSidebar"] hr { border-color: #d0d7de !important; }
-            [data-testid="stSidebar"] [data-baseweb="input"] > div,
-            [data-testid="stSidebar"] [data-baseweb="select"] > div,
-            [data-testid="stSidebar"] [data-baseweb="textarea"] > div {
+            
+            /* BLINDAGE DU THÈME CLAIR SUR TOUS LES INPUTS ET EXPANDERS (dont la boite de l'oeil mdp) */
+            input, select, textarea, [data-baseweb="input"], [data-baseweb="input"] > div, [data-baseweb="select"] > div, [data-baseweb="textarea"] > div, [data-baseweb="base-input"] {
                 background-color: #ffffff !important;
                 border-color: #d0d7de !important;
                 color: #1f2328 !important;
+                -webkit-text-fill-color: #1f2328 !important;
             }
-            /* Corriger les boutons dans tout le corps principal (y compris Admin) */
-            [data-testid="stMain"] div[data-testid="stButton"] > button {
-                background-color: #ffffff;
-                color: #1f2328;
-                border: 1px solid #d0d7de;
-            }
-            [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
-                border-color: #1f77b4;
-                color: #1f77b4;
-            }
-            [data-testid="stMain"] div[data-baseweb="select"] > div {
+            div[data-testid="stExpander"] > details, div[data-testid="stExpander"] > details > summary, div[data-testid="stExpanderDetails"] {
                 background-color: #ffffff !important;
-                border-color: #d0d7de !important;
                 color: #1f2328 !important;
             }
+            
+            /* Corriger tous les boutons secondaires et formulaires ("Enregistrer les modifications") */
+            button[kind="secondary"], button[kind="secondaryFormSubmit"] {
+                background-color: #ffffff !important;
+                color: #1f2328 !important;
+                border: 1px solid #d0d7de !important;
+            }
+            button[kind="secondary"]:hover, button[kind="secondaryFormSubmit"]:hover {
+                border-color: #1f77b4 !important;
+                color: #1f77b4 !important;
+            }
+            
             [data-testid="stMain"] span[data-baseweb="tag"] {
                 background-color: #eaeef2 !important;
                 color: #1f2328 !important;
                 border: 1px solid #d0d7de;
-            }
-            /* Boutons Sidebar */
-            [data-testid="stSidebar"] div[data-testid="stButton"] > button {
-                background-color: #ffffff;
-                color: #1f2328;
-                border: 1px solid #d0d7de;
-            }
-            /* Icônes en haut à droite ("Deploy", Menu) */
-            [data-testid="stHeader"] * {
-                color: #1f2328 !important;
-                fill: #1f2328 !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -612,14 +575,15 @@ def render_progress_kpi(target, title, left_text, right_text, left_pct, left_col
 
 def render_table_card(target, df):
     header_bg = "#11151c" if st.session_state.theme == "dark" else "#f6f8fa"
-    table_html = df.to_html(index=True, border=0)
+    # Modification ici: index=False pour avoir un tableau très propre dans "Comptes"
+    table_html = df.to_html(index=False, border=0)
     target.markdown(
         f"""
         <div style="border: 1px solid {THEME['card_border']}; background-color: {THEME['card_bg']}; border-radius: 5px; padding: 10px;">
             <style>
                 .kpi-table-wrap table {{ width: 100%; border-collapse: collapse; color: {THEME['text']}; }}
-                .kpi-table-wrap th {{ background-color: {header_bg}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: center; }}
-                .kpi-table-wrap td {{ background-color: {THEME['card_bg']}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: center; }}
+                .kpi-table-wrap th {{ background-color: {header_bg}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: left; }}
+                .kpi-table-wrap td {{ background-color: {THEME['card_bg']}; color: {THEME['text']}; border: 1px solid {THEME['card_border']}; padding: 8px; text-align: left; }}
             </style>
             <div class="kpi-table-wrap">{table_html}</div>
         </div>
@@ -824,7 +788,7 @@ else:
             logout_user()
             st.rerun()
         # --- MICRO-MODIF 2 : BOUTON QUITTER ---
-        if st.button("❌ Quitter", key="sidebar_quit", use_container_width=True):
+        if st.button("❌ Eteindre streamlit", key="sidebar_quit", use_container_width=True):
             os._exit(0)
         # ----------------------------------------
     st.sidebar.markdown("</div>", unsafe_allow_html=True)
@@ -994,10 +958,15 @@ if page == "Connexion":
         st.success("Vous êtes déjà connecté.")
         st.stop()
 
-    # Date/Heure en haut à gauche
-    now = datetime.now()
-    jour_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-    st.markdown(f"**{jour_fr[now.weekday()]} {now.strftime('%d/%m/%Y %H:%M')}**")
+    # NOUVEAU : Bouton Eteindre en haut à droite
+    col_date, col_quit = st.columns([9, 1])
+    with col_date:
+        now = datetime.now()
+        jour_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+        st.markdown(f"**{jour_fr[now.weekday()]} {now.strftime('%d/%m/%Y %H:%M')}**")
+    with col_quit:
+        if st.button("❌ Eteindre", key="quit_login"):
+            os._exit(0)
     
     # Centrer le formulaire
     col1, col2, col3 = st.columns([1,1,1])
@@ -1310,7 +1279,9 @@ elif page == "Admin":
         users_df["actif"] = users_df["is_active"].apply(lambda v: "Oui" if int(v) == 1 else "Non")
         users_df = users_df[["username", "role", "actif", "created_at"]]
         users_df.columns = ["Identifiant", "Rôle", "Actif", "Créé le"]
-        st.dataframe(users_df, use_container_width=True, hide_index=True)
+        
+        # --- NOUVEAU: Remplacement du st.dataframe (bugué avec le css) par notre render_table_card ---
+        render_table_card(st, users_df)
 
     col_create, col_manage = st.columns(2)
 
