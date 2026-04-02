@@ -235,6 +235,7 @@ function Import-SqlIfNeeded([string]$containerId, [string]$targetDb) {
 }
 
 function Start-DockerStack {
+    $local:ErrorActionPreference = "Continue"
     $composeCmd = Get-ComposeCommand
     if (-not $composeCmd) {
         Fail "Docker/Docker Compose introuvable. Installe Docker Desktop puis relance."
