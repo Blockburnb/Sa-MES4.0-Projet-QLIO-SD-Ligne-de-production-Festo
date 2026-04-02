@@ -28,7 +28,7 @@ update_project_paths() {
   VENV_DIR="$PROJECT_DIR/.venv"
   APP_FILE="$PROJECT_DIR/dashboard/windows/app.py"
   COMPOSE_FILE="$PROJECT_DIR/TELEFAN/docker-compose.yml"
-  SQL_DUMP_FILE="$PROJECT_DIR/TELEFAN/FestoMES-2025-03-27.sql"
+  SQL_DUMP_FILE="$PROJECT_DIR/TELEFAN/FestoMES-2026-03-31.sql"
 }
 
 update_project_paths
