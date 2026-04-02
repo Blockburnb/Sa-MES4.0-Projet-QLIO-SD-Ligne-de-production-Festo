@@ -1,4 +1,5 @@
 import os
+import sys  
 import hashlib
 import hmac
 import secrets
@@ -14,12 +15,20 @@ import streamlit as st
 # Configuration de la page (Mode Large + Dark Mode)
 st.set_page_config(
     page_title="Maquette MES 4.0 - T'EleFan", 
+    page_icon="icone.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
+# --- MICRO-MODIF 1 : GESTION DU CHEMIN POUR LE .EXE ---
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
 
-AUTH_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auth_users.sqlite3")
+AUTH_DB_PATH = os.path.join(get_base_path(), "auth_users.sqlite3")
+# --------------------------------------------------------
+
 ROLE_OPTIONS = ["Admin", "Opérateur", "Superviseur", "Chef de production"]
 EMPTY_ROLE_SENTINEL = "__NONE__"
 KPI_ROWS = [
@@ -84,6 +93,16 @@ def init_auth_db():
                 )
                 """
             )
+            # NOUVEAU : Table Configuration SQL
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS app_config (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                )
+                """
+            )
+            
             conn.executemany(
                 """
                 INSERT OR IGNORE INTO users (username, password_hash, salt, role)
@@ -105,11 +124,35 @@ def init_auth_db():
                         """,
                         [(label, role) for role in ROLE_OPTIONS],
                     )
+            
+            # Insérer paramètres SQL par défaut si vide
+            sql_defaults = [("db_host", "localhost"), ("db_port", "3306"), ("db_user", "example_user"), ("db_password", "example_password"), ("db_database", "MES4")]
+            for k, v in sql_defaults:
+                conn.execute("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", (k, v))
 
             conn.commit()
         return True, ""
     except sqlite3.Error as exc:
         return False, str(exc)
+
+# --- NOUVEAU : FONCTIONS PERSISTANCE SQL ---
+def load_db_settings_from_sqlite():
+    try:
+        with sqlite3.connect(AUTH_DB_PATH) as conn:
+            rows = conn.execute("SELECT key, value FROM app_config").fetchall()
+            if rows:
+                return {row[0].replace("db_", ""): row[1] for row in rows}
+    except: pass
+    return None
+
+def save_db_settings_to_sqlite(settings):
+    try:
+        with sqlite3.connect(AUTH_DB_PATH) as conn:
+            for k, v in settings.items():
+                conn.execute("INSERT OR REPLACE INTO app_config (key, value) VALUES (?, ?)", (f"db_{k}", v))
+            conn.commit()
+    except: pass
+# ---------------------------------------------
 
 
 def get_user_record(username):
@@ -355,7 +398,7 @@ def query_scalar(sql, params, db_config, default=0):
 # Initialiser session_state pour refresh des données et thème
 if "last_refresh" not in st.session_state:
     st.session_state.last_refresh = datetime.now()
-    st.session_state.theme = "dark"  # dark ou light
+    st.session_state.theme = "dark"  
 
 if "is_authenticated" not in st.session_state:
     st.session_state["is_authenticated"] = False
@@ -364,17 +407,21 @@ if "auth_user" not in st.session_state:
 if "auth_role" not in st.session_state:
     st.session_state["auth_role"] = ""
 if "db_settings" not in st.session_state:
-    st.session_state["db_settings"] = {
-        "host": os.getenv("DB_HOST", "localhost"),
-        "port": os.getenv("DB_PORT", "3306"),
-        "user": os.getenv("DB_USER", "example_user"),
-        "password": os.getenv("DB_PASSWORD", "example_password"),
-        "database": os.getenv("DB_NAME", "MES4"),
-    }
+    saved_settings = load_db_settings_from_sqlite()
+    if saved_settings:
+        st.session_state["db_settings"] = saved_settings
+    else:
+        st.session_state["db_settings"] = {
+            "host": os.getenv("DB_HOST", "localhost"),
+            "port": os.getenv("DB_PORT", "3306"),
+            "user": os.getenv("DB_USER", "example_user"),
+            "password": os.getenv("DB_PASSWORD", "example_password"),
+            "database": os.getenv("DB_NAME", "MES4"),
+        }
 
 ensure_kpi_permissions()
 
-# Appliquer le thème CSS
+# --- CSS MODIFIÉ POUR CORRIGER LE THÈME CLAIR (INCLUANT PAGE ADMIN) ---
 if st.session_state.theme == "dark":
     st.markdown("""
         <style>
@@ -411,6 +458,25 @@ if st.session_state.theme == "dark":
                 border-color: #2d333b !important;
                 color: #c9d1d9 !important;
             }
+            [data-testid="stMain"] div[data-testid="stButton"] > button {
+                background-color: #11151c;
+                color: #c9d1d9;
+                border: 1px solid #444;
+            }
+            [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
+                border-color: #1f77b4;
+                color: #ffffff;
+            }
+            [data-testid="stMain"] div[data-baseweb="select"] > div {
+                background-color: #11151c !important;
+                border-color: #444 !important;
+                color: #c9d1d9 !important;
+            }
+            [data-testid="stMain"] span[data-baseweb="tag"] {
+                background-color: #1b2430 !important;
+                color: #c9d1d9 !important;
+                border: 1px solid #444;
+            }
         </style>
     """, unsafe_allow_html=True)
 else:
@@ -418,6 +484,8 @@ else:
         <style>
             :root { --primary-color: #1f77b4; --background-color: #ffffff; --secondary-background-color: #f8f9fa; }
             [data-testid="stAppViewContainer"] { background-color: var(--secondary-background-color); }
+            [data-testid="stHeader"] { background-color: #f6f8fa !important; }
+            [data-testid="stToolbar"] { background-color: #f6f8fa !important; }
             [data-testid="stAppViewContainer"] h1,
             [data-testid="stAppViewContainer"] h2,
             [data-testid="stAppViewContainer"] h3,
@@ -426,11 +494,61 @@ else:
             [data-testid="stAppViewContainer"] h6 {
                 color: #1f2328;
             }
+            [data-testid="stAppViewContainer"] p,
+            [data-testid="stAppViewContainer"] li,
+            [data-testid="stAppViewContainer"] label,
+            [data-testid="stAppViewContainer"] span {
+                color: #1f2328;
+            }
+            [data-testid="stAppViewContainer"] small,
+            [data-testid="stAppViewContainer"] [data-testid="stCaptionContainer"] {
+                color: #57606a !important;
+            }
             [data-testid="stSidebar"] { background-color: #f6f8fa !important; border-right: 1px solid #d0d7de; }
             [data-testid="stSidebar"] > div:first-child { background-color: #f6f8fa !important; }
+            [data-testid="stSidebar"] * { color: #1f2328; }
+            [data-testid="stSidebar"] hr { border-color: #d0d7de !important; }
+            [data-testid="stSidebar"] [data-baseweb="input"] > div,
+            [data-testid="stSidebar"] [data-baseweb="select"] > div,
+            [data-testid="stSidebar"] [data-baseweb="textarea"] > div {
+                background-color: #ffffff !important;
+                border-color: #d0d7de !important;
+                color: #1f2328 !important;
+            }
+            /* Corriger les boutons dans tout le corps principal (y compris Admin) */
+            [data-testid="stMain"] div[data-testid="stButton"] > button {
+                background-color: #ffffff;
+                color: #1f2328;
+                border: 1px solid #d0d7de;
+            }
+            [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
+                border-color: #1f77b4;
+                color: #1f77b4;
+            }
+            [data-testid="stMain"] div[data-baseweb="select"] > div {
+                background-color: #ffffff !important;
+                border-color: #d0d7de !important;
+                color: #1f2328 !important;
+            }
+            [data-testid="stMain"] span[data-baseweb="tag"] {
+                background-color: #eaeef2 !important;
+                color: #1f2328 !important;
+                border: 1px solid #d0d7de;
+            }
+            /* Boutons Sidebar */
+            [data-testid="stSidebar"] div[data-testid="stButton"] > button {
+                background-color: #ffffff;
+                color: #1f2328;
+                border: 1px solid #d0d7de;
+            }
+            /* Icônes en haut à droite ("Deploy", Menu) */
+            [data-testid="stHeader"] * {
+                color: #1f2328 !important;
+                fill: #1f2328 !important;
+            }
         </style>
     """, unsafe_allow_html=True)
-
+# ---------------------------------------------------------------
 
 def get_theme_tokens():
     if st.session_state.theme == "dark":
@@ -538,7 +656,6 @@ def apply_plot_theme(fig):
     fig.update_xaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
     fig.update_yaxes(gridcolor="#2d333b" if st.session_state.theme == "dark" else "#e5e7eb")
 
-    # Evite l'affichage de textes "undefined" sur certains graphiques sans titre explicite.
     title_text = getattr(getattr(fig.layout, "title", None), "text", None)
     if title_text is None or str(title_text).strip().lower() == "undefined":
         fig.update_layout(title_text="")
@@ -556,7 +673,6 @@ def apply_plot_theme(fig):
 
 @st.cache_data(ttl=300)
 def get_available_data_period(db_config):
-    # Priorite aux donnees de production (Start/End), fallback sur les logs machine.
     prod_df = query_df(
         """
         SELECT MIN(dt) AS min_dt, MAX(dt) AS max_dt
@@ -615,7 +731,7 @@ if not st.session_state["is_authenticated"]:
     else:
         st.sidebar.error(f"Base de comptes indisponible : {AUTH_DB_ERROR}")
     st.sidebar.markdown("---")
-    if st.sidebar.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle_login", width='stretch'):
+    if st.sidebar.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle_login", use_container_width=True):
         st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
         st.rerun()
 else:
@@ -646,15 +762,18 @@ else:
             db_user = st.text_input("Utilisateur", value=db_settings["user"], key="db_user_input")
             db_password = st.text_input("Mot de passe", value=db_settings["password"], type="password", key="db_password_input")
             db_name = st.text_input("Base", value=db_settings["database"], key="db_name_input")
-            if st.button("Appliquer configuration SQL", key="save_db_settings", width="stretch"):
-                st.session_state["db_settings"] = {
+            if st.button("Appliquer configuration SQL", key="save_db_settings", use_container_width=True):
+                # --- NOUVEAU : Sauvegarde Locale Automatique ---
+                new_settings = {
                     "host": db_host,
                     "port": db_port,
                     "user": db_user,
                     "password": db_password,
                     "database": db_name,
                 }
-                st.success("Configuration SQL mise à jour.")
+                st.session_state["db_settings"] = new_settings
+                save_db_settings_to_sqlite(new_settings)
+                st.success("Configuration SQL sauvegardée localement.")
                 st.rerun()
         else:
             st.caption("Configuration SQL verrouillée (Admin uniquement).")
@@ -698,12 +817,16 @@ else:
     st.sidebar.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     col1, col2, col3 = st.sidebar.columns([1, 2, 1])
     with col2:
-        if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", width='stretch'):
+        if st.button(f"Thème {'🌙' if st.session_state.theme == 'dark' else '☀️'}", key="theme_toggle", use_container_width=True):
             st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
             st.rerun()
-        if st.button("Déconnexion", key="sidebar_logout", width='stretch'):
+        if st.button("Déconnexion", key="sidebar_logout", use_container_width=True):
             logout_user()
             st.rerun()
+        # --- MICRO-MODIF 2 : BOUTON QUITTER ---
+        if st.button("❌ Quitter", key="sidebar_quit", use_container_width=True):
+            os._exit(0)
+        # ----------------------------------------
     st.sidebar.markdown("</div>", unsafe_allow_html=True)
 
 # Header commun pour toutes les pages (sauf connexion)
@@ -887,7 +1010,7 @@ if page == "Connexion":
         with st.form("login_form"):
             username = st.text_input("Identifiant", placeholder="user ou admin")
             password = st.text_input("Mot de passe", type="password")
-            submitted = st.form_submit_button("SE CONNECTER", type="primary", width='stretch')
+            submitted = st.form_submit_button("SE CONNECTER", type="primary", use_container_width=True)
 
         if submitted:
             auth_result = authenticate_user(username, password)
@@ -973,8 +1096,6 @@ elif page == "Stockage":
     
     st.title("📦 Logistique")
     
-    # Section Stockage
-    st.markdown("### 📦 Stockage")
     with st.container():
         col_stock1, col_stock2 = st.columns(2)
         
@@ -1007,7 +1128,7 @@ elif page == "Stockage":
                 ))
                 gauge_fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
                 apply_plot_theme(gauge_fig)
-                st.plotly_chart(gauge_fig, width='stretch')
+                st.plotly_chart(gauge_fig, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "4. Taux Occupation Stockage")
         
@@ -1032,7 +1153,7 @@ elif page == "Stockage":
                 ))
                 fig_movements.update_layout(height=280, margin=dict(l=20, r=20, t=20, b=20), hovermode="x")
                 apply_plot_theme(fig_movements)
-                st.plotly_chart(fig_movements, width='stretch')
+                st.plotly_chart(fig_movements, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "5. Mouvements Stocks")
 
@@ -1042,8 +1163,6 @@ elif page == "Robot":
     
     st.title("🤖 Robotino")
     
-    # Section Robot
-    st.markdown("### 🤖 Robotino")
     with st.container():
         col_robot1, col_robot2 = st.columns(2)
         
@@ -1097,7 +1216,7 @@ elif page == "Robot":
                     ),
                 )
                 apply_plot_theme(fig_mixed)
-                st.plotly_chart(fig_mixed, width='stretch')
+                st.plotly_chart(fig_mixed, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "6. Historique Autonomie")
         
@@ -1125,7 +1244,7 @@ elif page == "Robot":
                     hovermode="x"
                 )
                 apply_plot_theme(fig_distance)
-                st.plotly_chart(fig_distance, width='stretch')
+                st.plotly_chart(fig_distance, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "7. Distance Parcourue")
 
@@ -1136,31 +1255,6 @@ elif page == "Admin":
         st.stop()
 
     display_header()
-
-    if st.session_state.theme == "dark":
-        st.markdown("""
-            <style>
-                [data-testid="stMain"] div[data-testid="stButton"] > button {
-                    background-color: #11151c;
-                    color: #c9d1d9;
-                    border: 1px solid #444;
-                }
-                [data-testid="stMain"] div[data-testid="stButton"] > button:hover {
-                    border-color: #1f77b4;
-                    color: #ffffff;
-                }
-                [data-testid="stMain"] div[data-baseweb="select"] > div {
-                    background-color: #11151c !important;
-                    border-color: #444 !important;
-                    color: #c9d1d9 !important;
-                }
-                [data-testid="stMain"] span[data-baseweb="tag"] {
-                    background-color: #1b2430 !important;
-                    color: #c9d1d9 !important;
-                    border: 1px solid #444;
-                }
-            </style>
-        """, unsafe_allow_html=True)
     
     st.title("📊 Gestion de Production (Admin)")
 
@@ -1185,7 +1279,7 @@ elif page == "Admin":
         for label, dest in kpi_rows:
             col_label, col_perms, col_data = st.columns([2, 2.5, 0.5])
             with col_label:
-                st.button(label, key=f"kpi_nav_{label}", on_click=set_nav_target, args=(dest,), width='stretch')
+                st.button(label, key=f"kpi_nav_{label}", on_click=set_nav_target, args=(dest,), use_container_width=True)
             with col_perms:
                 current_perms = st.session_state["kpi_permissions"][label]
                 selected_perms = st.multiselect(
@@ -1216,7 +1310,7 @@ elif page == "Admin":
         users_df["actif"] = users_df["is_active"].apply(lambda v: "Oui" if int(v) == 1 else "Non")
         users_df = users_df[["username", "role", "actif", "created_at"]]
         users_df.columns = ["Identifiant", "Rôle", "Actif", "Créé le"]
-        st.dataframe(users_df, width='stretch', hide_index=True)
+        st.dataframe(users_df, use_container_width=True, hide_index=True)
 
     col_create, col_manage = st.columns(2)
 
@@ -1227,7 +1321,7 @@ elif page == "Admin":
             new_password = st.text_input("Mot de passe", type="password")
             confirm_password = st.text_input("Confirmer le mot de passe", type="password")
             new_role = st.selectbox("Rôle", ROLE_OPTIONS, index=ROLE_OPTIONS.index("Opérateur"))
-            create_submitted = st.form_submit_button("Créer le compte", type="primary", width='stretch')
+            create_submitted = st.form_submit_button("Créer le compte", type="primary", use_container_width=True)
 
         if create_submitted:
             if new_password != confirm_password:
@@ -1264,7 +1358,7 @@ elif page == "Admin":
                     value=bool(selected_user and int(selected_user["is_active"]) == 1),
                 )
                 reset_password = st.text_input("Nouveau mot de passe (optionnel)", type="password")
-                update_submitted = st.form_submit_button("Enregistrer les modifications", width='stretch')
+                update_submitted = st.form_submit_button("Enregistrer les modifications", use_container_width=True)
 
             if update_submitted:
                 if selected_username == current_user and not selected_active:
@@ -1371,7 +1465,7 @@ elif page == "Qualité":
                     showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
                 )
                 apply_plot_theme(fig_occupation)
-                st.plotly_chart(fig_occupation, width='stretch')
+                st.plotly_chart(fig_occupation, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "10. Occupation Machine")
         
@@ -1406,7 +1500,7 @@ elif page == "Qualité":
                     showlegend=True, hovermode="x", legend=dict(x=0.5, y=-0.3, xanchor="center", yanchor="top", orientation="h")
                 )
                 apply_plot_theme(fig_cycle)
-                st.plotly_chart(fig_cycle, width='stretch')
+                st.plotly_chart(fig_cycle, use_container_width=True)
             else:
                 render_kpi_access_denied(st, "11. Temps Cycle & NVA")
     
@@ -1464,7 +1558,7 @@ elif page == "Qualité":
                 showlegend=False, hovermode="x"
             )
             apply_plot_theme(fig_nc)
-            st.plotly_chart(fig_nc, width='stretch')
+            st.plotly_chart(fig_nc, use_container_width=True)
         else:
             render_kpi_access_denied(st, "12. Taux Défaut")
         
@@ -1502,7 +1596,7 @@ elif page == "Qualité":
                     showlegend=False, hovermode="x"
                 )
                 apply_plot_theme(fig_causes)
-                st.plotly_chart(fig_causes, width='stretch')
+                st.plotly_chart(fig_causes, use_container_width=True)
             else:
                 render_kpi_access_denied(q1, "13. Causes NC")
         
