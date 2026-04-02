@@ -14,9 +14,9 @@ $sqlDumpFile = ""
 
 function Update-ProjectPaths {
     $script:venvDir = Join-Path $script:projectDir ".venv"
-    $script:appFile = Join-Path $script:projectDir "dashboard/dashboard_final.py"
+    $script:appFile = Join-Path $script:projectDir "dashboard/windows/app.py"
     $script:composeFile = Join-Path $script:projectDir "TELEFAN/docker-compose.yml"
-    $script:sqlDumpFile = Join-Path $script:projectDir "TELEFAN/FestoMES-2025-03-27.sql"
+    $script:sqlDumpFile = Join-Path $script:projectDir "TELEFAN/FestoMES-2026-03-31.sql"
 }
 
 Update-ProjectPaths
